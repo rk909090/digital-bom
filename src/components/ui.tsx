@@ -50,7 +50,7 @@ export function PageHeader({ title, subtitle, actions, back }: { title: ReactNod
         <h1 className="text-2xl font-extrabold tracking-tight sm:text-[28px]">{title}</h1>
         {subtitle && <p className="mt-1 text-muted">{subtitle}</p>}
       </div>
-      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+      {actions && <div className="flex flex-wrap gap-2 sm:justify-end lg:shrink-0 lg:flex-nowrap">{actions}</div>}
     </div>
   );
 }

@@ -71,7 +71,7 @@ export function RecipeImportButton() {
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className={btn("secondary", "lg")}>
+      <button type="button" onClick={() => setOpen(true)} className={btn("secondary", "md")}>
         <FileSpreadsheet className="size-5" /> Impor Excel
       </button>
       <Modal

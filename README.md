@@ -26,7 +26,7 @@ Set `DEMO_MODE=false` agar PIN tidak ditampilkan di halaman masuk.
 | Wawan | Gudang WIP (freezer) | 6666 |
 | Putri | Packing FG | 7777 |
 
-Admin bisa **Reset data demo** di menu *Resep & Bahan*.
+Admin bisa **Reset demo** di menu *Resep & Bahan*.
 
 ## Alur & layar
 

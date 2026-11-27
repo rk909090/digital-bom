@@ -18,7 +18,7 @@ export function NewProductButton() {
   const toast = useToast();
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className={btn("primary", "lg")}>
+      <button type="button" onClick={() => setOpen(true)} className={btn("primary", "md")}>
         <Plus className="size-5" /> Produk baru
       </button>
       <Modal
@@ -69,8 +69,8 @@ export function ResetDemoButton() {
   const toast = useToast();
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className={btn("danger", "lg")}>
-        <RotateCcw className="size-5" /> Reset data demo
+      <button type="button" onClick={() => setOpen(true)} className={btn("danger", "md")}>
+        <RotateCcw className="size-5" /> Reset demo
       </button>
       <Modal
         open={open}

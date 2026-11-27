@@ -1,4 +1,4 @@
-// Data awal (contoh) untuk uji coba (Fase 1–4). Bisa dijalankan ulang dari menu Admin → Reset data demo.
+// Data awal (contoh) untuk uji coba (Fase 1–4). Bisa dijalankan ulang dari menu Admin → Reset demo.
 import { eq } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";

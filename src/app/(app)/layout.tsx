@@ -1,7 +1,9 @@
 import { requireUser } from "@/lib/auth";
 import { navCounts } from "@/lib/queries";
 import { can, ROLE_LABEL } from "@/lib/access";
+import { cookies } from "next/headers";
 import { AppNav, type NavItem } from "./nav-tabs";
+import { NAV_COOKIE, type NavMode } from "@/lib/nav";
 import { NotifBell } from "./notif-bell";
 import { notificationsFor, unreadCount } from "@/lib/notif-queries";
 import { nowMs } from "@/lib/format";
@@ -27,11 +29,14 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   ].filter(Boolean) as NavItem[];
   const [unread, latest] = await Promise.all([unreadCount(user), notificationsFor(user, 8)]);
   const now = nowMs();
+  const saved = (await cookies()).get(NAV_COOKIE)?.value;
+  const navMode: NavMode = saved === "rail" || saved === "wide" ? saved : "auto";
 
   return (
     <div className="min-h-dvh lg:flex">
       <AppNav
         items={items}
+        navMode={navMode}
         user={{ name: user.name, color: user.color, role: ROLE_LABEL[user.role] }}
         bell={<NotifBell count={unread} items={latest} now={now} placement="side" />}
         mobileBell={<NotifBell count={unread} items={latest} now={now} />}
