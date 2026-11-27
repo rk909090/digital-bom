@@ -7,7 +7,7 @@
     "build": "next build --webpack",
     "start": "node --use-system-ca node_modules/next/dist/bin/next start",
     "lint": "eslint",
-    "db:generate": "drizzle-kit generate",
+    "db:generate": "drizzle-kit generate && tsx scripts/embed-migrations.ts",
     "db:reset": "tsx scripts/seed.ts",
     "test:voice": "tsx scripts/test-voice.ts"
   },
