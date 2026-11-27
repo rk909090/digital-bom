@@ -240,33 +240,60 @@ export function WeighStation({ batch, lines: serverLines, reasons }: { batch: Ba
   const fill = st === "ok" ? "bg-good" : st === "over" ? "bg-bad" : "bg-info";
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+    <div className="flex flex-col gap-3 station:h-[calc(100dvh-3rem)]">
+      {/* baris atas ringkas */}
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
         <Link href="/timbang" className="inline-flex items-center gap-1 font-semibold text-muted hover:text-ink">
           <ChevronLeft className="size-5" /> Daftar batch
         </Link>
-        <div className="flex items-center gap-3">
-          <Thumb src={batch.image} alt={batch.product} size={44} />
-          <div className="leading-tight">
-            <p className="font-bold">{batch.product}</p>
-            <p className="text-sm text-muted">
-              <span className="font-mono font-semibold">{batch.code}</span> · Target {num(batch.target)} pcs
-            </p>
-          </div>
+        <div className="flex min-w-0 items-center gap-2.5">
+          <Thumb src={batch.image} alt={batch.product} size={36} />
+          <p className="min-w-0 truncate leading-tight">
+            <b>{batch.product}</b>
+            <span className="text-sm text-muted">
+              {" "}· <span className="font-mono font-semibold">{batch.code}</span> · Target {num(batch.target)} pcs · <span className="tnum">{doneCount}/{lines.length}</span> bahan
+            </span>
+          </p>
         </div>
       </div>
 
-      <div className="grid items-start gap-5 lg:grid-cols-[300px_minmax(0,1fr)]">
-        {/* daftar bahan */}
-        <Card className="order-2 flex flex-col gap-3 p-4 lg:order-1">
-          <div className="flex items-center justify-between">
+      {/* daftar bahan sebagai strip (layar sempit / pendek) */}
+      <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1 station:hidden" aria-label="Daftar bahan">
+        {lines.map((l, i) => {
+          const isActive = l.id === active.id;
+          const done = l.actual != null;
+          return (
+            <button
+              key={l.id}
+              type="button"
+              disabled={done || pending}
+              onClick={() => setActiveId(l.id)}
+              aria-current={isActive ? "step" : undefined}
+              className={cx("flex shrink-0 items-center gap-2 rounded-xl border-2 bg-surface py-1.5 pr-3 pl-1.5 text-left", isActive ? "border-brand bg-brand-soft" : "border-line", done && "opacity-80")}
+            >
+              <Thumb src={l.image} alt="" size={32} />
+              <span className="leading-tight">
+                <span className="block text-sm font-semibold whitespace-nowrap">
+                  {i + 1}. {l.name}
+                </span>
+                <span className={cx("text-xs tnum", done ? (l.out ? "font-semibold text-bad" : "font-semibold text-good") : "text-muted")}>{done ? `${weight(l.actual!)} ✓` : weight(l.std)}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 station:min-h-0 station:flex-1 station:grid-cols-[210px_minmax(0,1fr)_minmax(0,1fr)] xl:station:grid-cols-[250px_minmax(0,1.05fr)_minmax(0,1fr)]">
+        {/* kolom 1: daftar bahan (layar lebar) */}
+        <Card className="hidden min-h-0 flex-col gap-2.5 p-3 station:flex">
+          <div className="flex items-center justify-between px-1">
             <h2 className="font-bold">Bahan</h2>
             <span className="text-sm text-muted tnum">
-              {doneCount} dari {lines.length} selesai
+              {doneCount}/{lines.length}
             </span>
           </div>
           <Progress value={doneCount} max={lines.length} />
-          <ul className="flex flex-col gap-1">
+          <ul className="-mx-1 flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-1 [scrollbar-width:thin]">
             {lines.map((l, i) => {
               const isActive = l.id === active.id;
               const done = l.actual != null;
@@ -277,10 +304,10 @@ export function WeighStation({ batch, lines: serverLines, reasons }: { batch: Ba
                     disabled={done || pending}
                     onClick={() => setActiveId(l.id)}
                     aria-current={isActive ? "step" : undefined}
-                    className={cx("flex w-full items-center gap-3 rounded-xl border-2 p-2 text-left transition", isActive ? "border-brand bg-brand-soft" : "border-transparent hover:bg-sunken", done && "opacity-90")}
+                    className={cx("flex w-full items-center gap-2.5 rounded-xl border-2 p-1.5 text-left transition", isActive ? "border-brand bg-brand-soft" : "border-transparent hover:bg-sunken", done && "opacity-90")}
                   >
                     <span className="relative">
-                      <Thumb src={l.image} alt="" size={44} />
+                      <Thumb src={l.image} alt="" size={38} />
                       {done && (
                         <span className={cx("absolute -right-1 -bottom-1 flex size-5 items-center justify-center rounded-full text-white ring-2 ring-white", l.out ? "bg-bad" : "bg-good")}>
                           {l.out ? <AlertTriangle className="size-3" /> : <Check className="size-3.5" strokeWidth={3} />}
@@ -288,12 +315,10 @@ export function WeighStation({ batch, lines: serverLines, reasons }: { batch: Ba
                       )}
                     </span>
                     <span className="min-w-0 flex-1 leading-tight">
-                      <span className="block font-semibold">
+                      <span className="block truncate text-[15px] font-semibold">
                         <span className="text-muted tnum">{i + 1}.</span> {l.name}
                       </span>
-                      <span className={cx("text-sm tnum", done ? (l.out ? "text-bad font-semibold" : "text-good font-semibold") : "text-muted")}>
-                        {done ? `${weight(l.actual!)} ✓` : weight(l.std)}
-                      </span>
+                      <span className={cx("text-sm tnum", done ? (l.out ? "font-semibold text-bad" : "font-semibold text-good") : "text-muted")}>{done ? `${weight(l.actual!)} ✓` : weight(l.std)}</span>
                     </span>
                   </button>
                 </li>
@@ -302,19 +327,19 @@ export function WeighStation({ batch, lines: serverLines, reasons }: { batch: Ba
           </ul>
         </Card>
 
-        {/* panel timbang */}
-        <Card className="order-1 flex flex-col gap-5 p-5 sm:p-6 lg:order-2">
-          <div className="flex items-center gap-5">
-            <div className="relative size-28 shrink-0 overflow-hidden rounded-2xl border border-line bg-white sm:size-32">
-              {active.image && <Image src={active.image} alt={active.name} fill sizes="256px" className="object-contain p-2" priority />}
+        {/* kolom 2: bahan aktif, angka, indikator, simpan */}
+        <Card className="flex flex-col gap-3 p-4 station:min-h-0 station:overflow-y-auto">
+          <div className="flex items-center gap-4">
+            <div className="relative size-20 shrink-0 overflow-hidden rounded-2xl border border-line bg-white xl:size-24">
+              {active.image && <Image src={active.image} alt={active.name} fill sizes="192px" className="object-contain p-1.5" priority />}
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-bold uppercase tracking-wide text-brand">
+              <p className="text-xs font-bold uppercase tracking-wide text-brand">
                 Bahan {stepNo} dari {lines.length}
               </p>
-              <h1 className="text-3xl font-extrabold leading-tight sm:text-4xl">{active.name}</h1>
-              <p className="mt-1 text-lg">
-                Ambil <b className="text-2xl tnum">{weight(active.std)}</b>
+              <h1 className="text-2xl font-extrabold leading-tight xl:text-3xl">{active.name}</h1>
+              <p className="text-[17px]">
+                Ambil <b className="text-xl tnum">{weight(active.std)}</b>
               </p>
               <p className="text-sm text-muted tnum">
                 Boleh {weight(lo)} – {weight(hi)} (±{num(active.tol, 0)}%)
@@ -323,46 +348,53 @@ export function WeighStation({ batch, lines: serverLines, reasons }: { batch: Ba
           </div>
 
           {/* angka & indikator */}
-          <div className="flex flex-col gap-4 rounded-2xl border border-line bg-sunken p-5">
-            <div className="flex items-end justify-between gap-4">
-              <div aria-live="polite">
-                <span className="text-6xl font-extrabold tracking-tight tnum sm:text-7xl">{big.n}</span>
-                <span className="ml-2 text-2xl font-bold text-muted">{big.u}</span>
+          <div className="flex flex-col gap-2.5 rounded-2xl border border-line bg-sunken p-4">
+            <div className="flex items-end justify-between gap-3">
+              <div aria-live="polite" className="min-w-0">
+                <span className="text-5xl font-extrabold tracking-tight tnum xl:text-6xl">{big.n}</span>
+                <span className="ml-1.5 text-xl font-bold text-muted">{big.u}</span>
               </div>
               {mode === "timbangan" && (
-                <span className={cx("mb-2 rounded-full px-3 py-1 text-sm font-bold", st === "settling" ? "bg-warn-soft text-warn" : "bg-surface text-muted border border-line")}>{st === "settling" ? "Bergerak" : "Stabil"}</span>
+                <span className={cx("mb-1 shrink-0 rounded-full px-3 py-1 text-sm font-bold", st === "settling" ? "bg-warn-soft text-warn" : "border border-line bg-surface text-muted")}>{st === "settling" ? "Bergerak" : "Stabil"}</span>
               )}
             </div>
             {/* gauge */}
-            <div className="relative h-8" aria-hidden="true">
-              <div className="absolute inset-x-0 top-1/2 h-4 -translate-y-1/2 rounded-full border border-line bg-surface" />
-              <div className="absolute top-1/2 h-4 -translate-y-1/2 rounded-full bg-good-soft ring-2 ring-good/50" style={{ left: pos(lo), width: `calc(${pos(hi)} - ${pos(lo)})` }} />
-              <div className={cx("absolute left-0 top-1/2 h-4 -translate-y-1/2 rounded-full opacity-80 transition-[width] duration-100", fill)} style={{ width: pos(value) }} />
-              <div className="absolute top-0 h-8 w-1 -translate-x-1/2 rounded bg-ink" style={{ left: pos(active.std) }} />
+            <div className="relative h-7" aria-hidden="true">
+              <div className="absolute inset-x-0 top-1/2 h-3.5 -translate-y-1/2 rounded-full border border-line bg-surface" />
+              <div className="absolute top-1/2 h-3.5 -translate-y-1/2 rounded-full bg-good-soft ring-2 ring-good/50" style={{ left: pos(lo), width: `calc(${pos(hi)} - ${pos(lo)})` }} />
+              <div className={cx("absolute left-0 top-1/2 h-3.5 -translate-y-1/2 rounded-full opacity-80 transition-[width] duration-100", fill)} style={{ width: pos(value) }} />
+              <div className="absolute top-0 h-7 w-1 -translate-x-1/2 rounded bg-ink" style={{ left: pos(active.std) }} />
             </div>
             <div className="flex justify-between text-xs font-semibold text-muted">
               <span>0</span>
               <span className="text-good">zona pas</span>
               <span>{weight(max)}</span>
             </div>
-            <div className={cx("flex items-center gap-3 rounded-xl px-4 py-3 text-xl font-bold", msg.cls)}>
+            <div className={cx("flex items-center gap-2.5 rounded-xl px-3 py-2.5 text-lg font-bold leading-tight", msg.cls)}>
               {msg.icon}
-              {msg.text}
-              {st !== "empty" && st !== "settling" && <span className="ml-auto text-base font-semibold opacity-80 tnum">{pctSigned(variance(value, active.std))}</span>}
+              <span className="min-w-0">{msg.text}</span>
+              {st !== "empty" && st !== "settling" && <span className="ml-auto shrink-0 text-base font-semibold opacity-80 tnum">{pctSigned(variance(value, active.std))}</span>}
             </div>
           </div>
 
-          {/* sumber input */}
-          <div className="grid grid-cols-3 gap-2 rounded-2xl bg-sunken p-1.5" role="tablist" aria-label="Cara memasukkan berat">
+          <button type="button" disabled={st === "empty" || st === "settling" || pending} onClick={onPrimary} className={btn(st === "ok" ? "good" : "primary", "xl", "max-md:hidden station:mt-auto")}>
+            {pending ? <Loader2 className="size-6 animate-spin" /> : <Check className="size-6" />}
+            Simpan & lanjut
+          </button>
+        </Card>
+
+        {/* kolom 3: cara input */}
+        <Card className="flex flex-col gap-3 p-4 station:min-h-0 station:overflow-y-auto">
+          <div className="grid grid-cols-3 gap-1.5 rounded-2xl bg-sunken p-1.5" role="tablist" aria-label="Cara memasukkan berat">
             {(
               [
                 ["timbangan", "Timbangan", Scale],
-                ["keypad", "Ketik angka", Keyboard],
+                ["keypad", "Ketik", Keyboard],
                 ["suara", "Suara", Mic],
               ] as const
             ).map(([k, label, Icon]) => (
-              <button key={k} type="button" role="tab" aria-selected={mode === k} onClick={() => setMode(k)} className={cx("flex h-12 items-center justify-center gap-2 rounded-xl font-semibold transition", mode === k ? "bg-surface text-ink shadow-card" : "text-muted hover:text-ink")}>
-                <Icon className="size-5" /> {label}
+              <button key={k} type="button" role="tab" aria-selected={mode === k} onClick={() => setMode(k)} className={cx("flex h-11 items-center justify-center gap-1.5 rounded-xl font-semibold transition", mode === k ? "bg-surface text-ink shadow-card" : "text-muted hover:text-ink")}>
+                <Icon className="size-5 shrink-0" /> {label}
               </button>
             ))}
           </div>
@@ -385,18 +417,16 @@ export function WeighStation({ batch, lines: serverLines, reasons }: { batch: Ba
                 </button>
               </div>
             ) : (
-              <div className="flex flex-col gap-3 rounded-xl border border-dashed border-line-strong p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <p className="text-sm text-ink-2">
-                    <b>Mode latihan.</b> Belum ada timbangan terhubung. Pakai tombol di bawah untuk mencoba.
-                  </p>
-                  {canSerial && (
-                    <button type="button" onClick={connect} className={btn("secondary", "sm")}>
-                      <Plug className="size-4" /> Hubungkan timbangan
-                    </button>
-                  )}
-                </div>
-                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <div className="flex flex-col gap-3 rounded-xl border border-dashed border-line-strong p-3">
+                <p className="text-sm text-ink-2">
+                  <b>Mode latihan.</b> Belum ada timbangan terhubung. Pakai tombol di bawah untuk mencoba.
+                </p>
+                {canSerial && (
+                  <button type="button" onClick={connect} className={btn("secondary", "sm", "self-start")}>
+                    <Plug className="size-4" /> Hubungkan timbangan
+                  </button>
+                )}
+                <div className="grid grid-cols-2 gap-2">
                   <button type="button" onClick={sim.put} className={btn("secondary", "md")}>Taruh bahan</button>
                   <button type="button" onClick={sim.add} className={btn("secondary", "md")}>+ Tambah sedikit</button>
                   <button type="button" onClick={sim.sub} className={btn("secondary", "md")}>− Kurangi sedikit</button>
@@ -416,30 +446,38 @@ export function WeighStation({ batch, lines: serverLines, reasons }: { batch: Ba
               saving={pending}
             />
           ) : (
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-sm font-semibold text-muted">Satuan</span>
-                <div className="flex rounded-xl border border-line-strong p-1">
+            <div className="flex flex-col gap-2.5">
+              <div className="flex items-stretch gap-2">
+                <div className="flex min-w-0 flex-1 items-baseline justify-end gap-2 rounded-xl border border-line-strong bg-surface px-3 py-1.5">
+                  <span className="truncate text-3xl font-extrabold tnum">{keyStr || "0"}</span>
+                  <span className="text-muted">{unit === "g" ? "gram" : "kg"}</span>
+                </div>
+                <div className="flex shrink-0 rounded-xl border border-line-strong p-1" role="group" aria-label="Satuan">
                   {(["kg", "g"] as const).map((u) => (
-                    <button key={u} type="button" onClick={() => { setUnit(u); setKeyStr(""); }} aria-pressed={unit === u} className={cx("h-10 min-w-16 rounded-lg px-3 font-bold", unit === u ? "bg-ink text-white" : "text-muted")}>
+                    <button key={u} type="button" onClick={() => { setUnit(u); setKeyStr(""); }} aria-pressed={unit === u} className={cx("min-w-14 rounded-lg px-2 font-bold", unit === u ? "bg-ink text-white" : "text-muted")}>
                       {u === "kg" ? "kg" : "gram"}
                     </button>
                   ))}
                 </div>
               </div>
-              <div className="flex items-baseline justify-end gap-2 rounded-xl border border-line-strong bg-surface px-4 py-2">
-                <span className="text-3xl font-extrabold tnum">{keyStr || "0"}</span>
-                <span className="text-muted">{unit === "g" ? "gram" : "kg"}</span>
-              </div>
-              <Keypad value={keyStr} onChange={setKeyStr} decimal={unit === "kg"} />
+              <Keypad value={keyStr} onChange={setKeyStr} decimal={unit === "kg"} compact />
             </div>
           )}
+        </Card>
 
-          <button type="button" disabled={st === "empty" || st === "settling" || pending} onClick={onPrimary} className={btn(st === "ok" ? "good" : "primary", "xl")}>
-            {pending ? <Loader2 className="size-6 animate-spin" /> : <Check className="size-6" />}
+        {/* HP: bar simpan menempel di bawah layar */}
+        <div className="sticky bottom-0 z-20 -mx-4 flex items-center gap-3 border-t border-line bg-surface/95 px-4 py-3 backdrop-blur md:hidden" style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}>
+          <div className="min-w-0 leading-tight">
+            <p className="text-xs text-muted">{active.name}</p>
+            <p className={cx("text-lg font-extrabold tnum", st === "ok" ? "text-good" : st === "over" ? "text-bad" : st === "under" ? "text-info" : "text-ink")}>
+              {big.n} {big.u}
+            </p>
+          </div>
+          <button type="button" disabled={st === "empty" || st === "settling" || pending} onClick={onPrimary} className={btn(st === "ok" ? "good" : "primary", "lg", "flex-1")}>
+            {pending ? <Loader2 className="size-5 animate-spin" /> : <Check className="size-5" />}
             Simpan & lanjut
           </button>
-        </Card>
+        </div>
       </div>
 
       <Modal

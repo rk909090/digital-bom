@@ -5,7 +5,7 @@ import { Delete, Minus, Plus, X } from "lucide-react";
 import { cx } from "./ui";
 
 /** Keypad angka besar untuk layar sentuh. */
-export function Keypad({ value, onChange, decimal = true, maxLength = 8 }: { value: string; onChange: (v: string) => void; decimal?: boolean; maxLength?: number }) {
+export function Keypad({ value, onChange, decimal = true, maxLength = 8, compact = false }: { value: string; onChange: (v: string) => void; decimal?: boolean; maxLength?: number; compact?: boolean }) {
   const press = (k: string) => {
     if (k === "del") return onChange(value.slice(0, -1));
     if (k === ",") {
@@ -27,7 +27,7 @@ export function Keypad({ value, onChange, decimal = true, maxLength = 8 }: { val
             type="button"
             onClick={() => press(k)}
             aria-label={k === "del" ? "Hapus angka terakhir" : k === "," ? "Koma" : k}
-            className="flex h-16 items-center justify-center rounded-xl border border-line-strong bg-surface text-2xl font-bold tnum active:bg-sunken"
+            className={cx("flex items-center justify-center rounded-xl border border-line-strong bg-surface text-2xl font-bold tnum active:bg-sunken", compact ? "h-14" : "h-16")}
           >
             {k === "del" ? <Delete className="size-6" /> : k}
           </button>

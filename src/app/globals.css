@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Tata letak stasiun "satu layar": hanya jika layar cukup lebar DAN cukup tinggi. */
+@custom-variant station (@media (min-width: 64rem) and (min-height: 34rem));
+
 /* Mode terang saja. Palet: abu-abu netral sejuk + oranye kulit roti sebagai warna aksi. */
 @theme {
   --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, "Segoe UI", sans-serif;

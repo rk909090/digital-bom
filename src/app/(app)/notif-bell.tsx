@@ -8,7 +8,7 @@ import { markRead } from "../actions/notifikasi";
 import { SevIcon, ago, type NotifView } from "@/components/notif-item";
 import { cx } from "@/components/ui";
 
-export function NotifBell({ count, items, now }: { count: number; items: NotifView[]; now: number }) {
+export function NotifBell({ count, items, now, placement = "down" }: { count: number; items: NotifView[]; now: number; placement?: "down" | "side" }) {
   const [open, setOpen] = useState(false);
   const [, start] = useTransition();
   const router = useRouter();
@@ -47,7 +47,12 @@ export function NotifBell({ count, items, now }: { count: number; items: NotifVi
         {count > 0 && <span className="absolute -top-0.5 -right-0.5 min-w-5 rounded-full bg-bad px-1.5 text-center text-xs font-bold leading-5 text-white ring-2 ring-surface tnum">{count > 99 ? "99+" : count}</span>}
       </button>
       {open && (
-        <div className="anim-pop absolute right-0 z-40 mt-2 w-[min(400px,calc(100vw-32px))] overflow-hidden rounded-2xl border border-line bg-surface shadow-pop">
+        <div
+          className={cx(
+            "anim-pop absolute z-50 w-[min(400px,calc(100vw-32px))] overflow-hidden rounded-2xl border border-line bg-surface shadow-pop",
+            placement === "side" ? "top-0 left-full ml-3" : "right-0 mt-2",
+          )}
+        >
           <div className="flex items-center justify-between border-b border-line px-4 py-3">
             <p className="font-bold">Notifikasi</p>
             {count > 0 && (

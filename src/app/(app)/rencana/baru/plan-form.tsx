@@ -46,10 +46,10 @@ export function PlanForm({ products, materials, today, tomorrow }: { products: P
   };
 
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_400px]">
-      <div className="flex flex-col gap-6">
+    <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_380px]">
+      <div className="flex flex-col gap-4">
         {/* Langkah 1 */}
-        <Card className="flex flex-col gap-4 p-5">
+        <Card className="flex flex-col gap-3 p-4">
           <StepTitle n={1} done={!!p}>Produk apa yang mau dibuat?</StepTitle>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             {products.map((x) => (
@@ -62,11 +62,11 @@ export function PlanForm({ products, materials, today, tomorrow }: { products: P
                 }}
                 aria-pressed={pid === x.id}
                 className={cx(
-                  "flex flex-col items-center gap-2 rounded-2xl border-2 bg-surface p-3 text-center transition",
+                  "flex flex-col items-center gap-1.5 rounded-2xl border-2 bg-surface p-2.5 text-center transition",
                   pid === x.id ? "border-brand bg-brand-soft" : "border-line hover:border-line-strong",
                 )}
               >
-                <Thumb src={x.image} alt={x.name} size={96} className="border-0 bg-transparent" />
+                <Thumb src={x.image} alt={x.name} size={72} className="border-0 bg-transparent" />
                 <span className="font-bold leading-tight">{x.name}</span>
                 <span className="text-xs text-muted">1 batch = {num(x.baseQty)} pcs</span>
               </button>
@@ -75,7 +75,7 @@ export function PlanForm({ products, materials, today, tomorrow }: { products: P
         </Card>
 
         {/* Langkah 2 */}
-        <Card className={cx("flex flex-col gap-4 p-5 transition", !p && "opacity-50")}>
+        <Card className={cx("flex flex-col gap-3 p-4 transition", !p && "opacity-50")}>
           <StepTitle n={2} done={qty > 0 && !!p}>Berapa banyak?</StepTitle>
           <div className="flex flex-wrap items-center gap-3">
             <button type="button" disabled={!p} onClick={() => setPad(true)} className="flex h-16 min-w-48 items-baseline justify-between gap-3 rounded-2xl border-2 border-line-strong bg-surface px-5 text-left hover:border-ink-2">
@@ -96,7 +96,7 @@ export function PlanForm({ products, materials, today, tomorrow }: { products: P
         </Card>
 
         {/* Langkah 3 */}
-        <Card className={cx("flex flex-col gap-4 p-5", !p && "opacity-50")}>
+        <Card className={cx("flex flex-col gap-3 p-4", !p && "opacity-50")}>
           <StepTitle n={3} done>Kapan diproduksi?</StepTitle>
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" onClick={() => setDate(today)} className={btn(date === today ? "primary" : "secondary", "lg")}>
@@ -115,8 +115,8 @@ export function PlanForm({ products, materials, today, tomorrow }: { products: P
       </div>
 
       {/* Ringkasan */}
-      <aside className="lg:sticky lg:top-36">
-        <Card className="flex flex-col gap-4 p-5">
+      <aside className="lg:sticky lg:top-6">
+        <Card className="flex flex-col gap-3 p-4">
           <h2 className="text-lg font-bold">Kebutuhan bahan</h2>
           {!calc || !p ? (
             <p className="text-muted">Pilih produk dan jumlah. Bahan yang dibutuhkan akan muncul di sini.</p>
@@ -174,8 +174,8 @@ export function PlanForm({ products, materials, today, tomorrow }: { products: P
 
 function StepTitle({ n, done, children }: { n: number; done: boolean; children: React.ReactNode }) {
   return (
-    <h2 className="flex items-center gap-3 text-xl font-bold">
-      <span className={cx("flex size-9 items-center justify-center rounded-full text-base font-extrabold", done ? "bg-good text-white" : "bg-sunken text-ink-2 border border-line")}>{done ? <CheckCircle2 className="size-5" /> : n}</span>
+    <h2 className="flex items-center gap-3 text-lg font-bold">
+      <span className={cx("flex size-8 items-center justify-center rounded-full text-base font-extrabold", done ? "bg-good text-white" : "bg-sunken text-ink-2 border border-line")}>{done ? <CheckCircle2 className="size-5" /> : n}</span>
       {children}
     </h2>
   );

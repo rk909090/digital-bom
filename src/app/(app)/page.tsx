@@ -49,11 +49,11 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
               key={tk.href}
               href={tk.href}
               className={cx(
-                "group flex items-center gap-4 rounded-2xl border bg-surface p-5 shadow-card transition hover:shadow-md active:scale-[0.995]",
+                "group flex items-center gap-4 rounded-2xl border bg-surface p-4 shadow-card transition hover:shadow-md active:scale-[0.995]",
                 tk.alert ? "border-bad-line" : has && tk.count ? "border-brand-line" : "border-line",
               )}
             >
-              <span className={cx("flex size-14 shrink-0 items-center justify-center rounded-2xl", tk.alert ? "bg-bad-soft text-bad" : has ? "bg-brand-soft text-brand" : "bg-sunken text-muted")}>
+              <span className={cx("flex size-12 shrink-0 items-center justify-center rounded-2xl", tk.alert ? "bg-bad-soft text-bad" : has ? "bg-brand-soft text-brand" : "bg-sunken text-muted")}>
                 <Icon className="size-7" />
               </span>
               <span className="min-w-0 flex-1">
