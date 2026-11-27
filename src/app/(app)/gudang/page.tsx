@@ -4,7 +4,7 @@ import { listMaterials, listRequests, reservedByMaterial } from "@/lib/queries";
 import { PageHeader } from "@/components/ui";
 import { GudangView } from "./gudang-view";
 
-export const metadata: Metadata = { title: "Gudang" };
+export const metadata: Metadata = { title: "Gudang RM" };
 
 export default async function GudangPage() {
   await requireUser("gudang");
@@ -20,7 +20,7 @@ export default async function GudangPage() {
     }));
   return (
     <>
-      <PageHeader title="Gudang" subtitle="Siapkan bahan yang diminta produksi, catat barang masuk, dan pantau stok." />
+      <PageHeader title="Gudang RM" subtitle="Siapkan bahan yang diminta produksi, catat barang masuk, dan pantau stok." />
       <GudangView open={req(open)} done={req(done.slice(0, 6))} materials={mats} />
     </>
   );

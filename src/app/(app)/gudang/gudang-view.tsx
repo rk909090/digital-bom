@@ -44,7 +44,7 @@ function TabBtn({ active, onClick, children, count, alert }: { active: boolean; 
   return (
     <button type="button" role="tab" aria-selected={active} onClick={onClick} className={cx("flex h-12 items-center gap-2 rounded-xl px-4 font-semibold transition", active ? "bg-ink text-white" : "bg-surface border border-line text-ink-2 hover:border-line-strong")}>
       {children}
-      {!!count && <span className={cx("rounded-full px-2 text-xs font-bold leading-5", active ? "bg-white/20" : alert ? "bg-bad text-white" : "bg-sunken")}>{count}</span>}
+      {!!count && <span className={cx("min-w-6 rounded-full px-2 text-center text-sm font-extrabold leading-6 tnum", alert ? "bg-bad text-white" : "bg-brand text-white", active && "ring-2 ring-white/70")}>{count}</span>}
     </button>
   );
 }

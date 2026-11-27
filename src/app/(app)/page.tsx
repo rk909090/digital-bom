@@ -1,16 +1,16 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowRight, BarChart3, ClipboardPlus, PackageCheck, Scale, ShieldCheck, Snowflake, Truck, Warehouse } from "lucide-react";
+import { BarChart3, ClipboardPlus, PackageCheck, Scale, ShieldCheck, Snowflake, Truck, Warehouse } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/access";
 import { listBatches, navCounts } from "@/lib/queries";
 import { dateLong, greeting, todayISO } from "@/lib/format";
 import { BatchCard } from "@/components/batch-card";
-import { Empty, SectionTitle, cx, btn } from "@/components/ui";
+import { TaskCard, type Task } from "@/components/task-card";
+import { Empty, SectionTitle, btn } from "@/components/ui";
 
 export const metadata: Metadata = { title: "Beranda" };
 
-type Task = { href: string; title: string; count?: number; desc: string; empty: string; icon: React.ComponentType<{ className?: string }>; alert?: boolean };
 
 export default async function Home({ searchParams }: { searchParams: Promise<Record<string, string | undefined>> }) {
   const user = await requireUser();
@@ -19,14 +19,14 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
   const active = (await listBatches({ statuses: ["menunggu", "ditimbang", "adonan", "wip", "produksi", "output", "diterima"] })).filter((b) => b.date !== todayISO());
 
   const tasks: Task[] = [];
-  if (can(user.role, "timbang")) tasks.push({ href: "/timbang", title: "Timbang bahan", count: n.timbang, desc: "batch menunggu ditimbang", empty: "Semua bahan sudah ditimbang", icon: Scale });
-  if (can(user.role, "wip")) tasks.push({ href: "/wip", title: "Gudang WIP (freezer)", count: n.wip, desc: `adonan · ${n.wipReady} siap masuk, ${n.wip - n.wipReady} di freezer`, empty: "Tidak ada adonan di Gudang WIP", icon: Snowflake });
-  if (can(user.role, "output")) tasks.push({ href: "/output", title: "Catat hasil produksi", count: n.output, desc: "batch keluar freezer, siap dicatat hasilnya", empty: "Belum ada batch yang keluar freezer", icon: PackageCheck });
-  if (can(user.role, "gudang")) tasks.push({ href: "/gudang", title: "Siapkan bahan (Gudang RM)", count: n.gudang, desc: "permintaan bahan dari produksi", empty: "Tidak ada permintaan bahan", icon: Warehouse });
-  if (can(user.role, "pengiriman")) tasks.push({ href: "/pengiriman", title: "Kirim produk jadi", count: n.pengiriman, desc: "batch siap dikirim ke gudang/outlet", empty: "Tidak ada yang perlu dikirim", icon: Truck });
-  if (can(user.role, "verifikasi")) tasks.push({ href: "/verifikasi", title: "Periksa & tutup batch", count: n.verifikasi + n.tutup, desc: `${n.verifikasi} penyimpangan · ${n.tutup} batch siap ditutup`, empty: "Tidak ada yang perlu diperiksa", icon: ShieldCheck, alert: n.verifikasi > 0 });
-  if (can(user.role, "rencana")) tasks.push({ href: "/rencana/baru", title: "Buat rencana produksi", desc: "Hitung bahan otomatis dari resep", empty: "", icon: ClipboardPlus });
-  if (can(user.role, "laporan")) tasks.push({ href: "/laporan", title: "Lihat laporan", desc: "Yield, reject, produktivitas & Excel", empty: "", icon: BarChart3 });
+  if (can(user.role, "timbang")) tasks.push({ href: "/timbang", title: "Timbang bahan", icon: Scale, count: n.timbang, unit: "batch", desc: "menunggu ditimbang", empty: "Semua bahan sudah ditimbang" });
+  if (can(user.role, "wip")) tasks.push({ href: "/wip", title: "Gudang WIP (freezer)", icon: Snowflake, count: n.wip, unit: "adonan", desc: n.wipReady ? "ada adonan baru, masukkan ke freezer" : "di dalam freezer", detail: `${n.wipReady} siap masuk · ${n.wip - n.wipReady} di dalam freezer`, empty: "Tidak ada adonan di Gudang WIP" });
+  if (can(user.role, "output")) tasks.push({ href: "/output", title: "Catat hasil produksi", icon: PackageCheck, count: n.output, unit: "batch", desc: "keluar freezer, siap dicatat hasilnya", empty: "Belum ada batch yang keluar freezer" });
+  if (can(user.role, "gudang")) tasks.push({ href: "/gudang", title: "Siapkan bahan (Gudang RM)", icon: Warehouse, count: n.gudang, unit: "permintaan", desc: "bahan dari produksi perlu disiapkan", empty: "Tidak ada permintaan bahan" });
+  if (can(user.role, "pengiriman")) tasks.push({ href: "/pengiriman", title: "Kirim produk jadi", icon: Truck, count: n.pengiriman, unit: "batch", desc: "siap dikirim ke gudang/outlet", empty: "Tidak ada yang perlu dikirim" });
+  if (can(user.role, "verifikasi")) tasks.push({ href: "/verifikasi", title: "Periksa & tutup batch", icon: ShieldCheck, count: n.verifikasi + n.tutup, unit: "tugas", desc: n.verifikasi ? "ada penyimpangan yang perlu diputuskan" : "batch siap ditutup", detail: `${n.verifikasi} penyimpangan · ${n.tutup} batch siap ditutup`, empty: "Tidak ada yang perlu diperiksa", alert: n.verifikasi > 0 });
+  if (can(user.role, "rencana")) tasks.push({ href: "/rencana/baru", title: "Buat rencana produksi", icon: ClipboardPlus, desc: "Hitung bahan otomatis dari resep" });
+  if (can(user.role, "laporan")) tasks.push({ href: "/laporan", title: "Lihat laporan", icon: BarChart3, desc: "Yield, reject, produktivitas & Excel" });
 
   return (
     <>
@@ -42,37 +42,9 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-        {tasks.map((tk) => {
-          const has = tk.count === undefined || tk.count > 0;
-          const Icon = tk.icon;
-          return (
-            <Link
-              key={tk.href}
-              href={tk.href}
-              className={cx(
-                "group flex items-center gap-4 rounded-2xl border bg-surface p-4 shadow-card transition hover:shadow-md active:scale-[0.995]",
-                tk.alert ? "border-bad-line" : has && tk.count ? "border-brand-line" : "border-line",
-              )}
-            >
-              <span className={cx("flex size-12 shrink-0 items-center justify-center rounded-2xl", tk.alert ? "bg-bad-soft text-bad" : has ? "bg-brand-soft text-brand" : "bg-sunken text-muted")}>
-                <Icon className="size-7" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-lg font-bold leading-tight">{tk.title}</span>
-                <span className="mt-0.5 block text-[15px] text-muted">
-                  {tk.count === undefined ? tk.desc : tk.count > 0 ? (
-                    <>
-                      <b className={cx("text-xl tnum", tk.alert ? "text-bad" : "text-ink")}>{tk.count}</b> {tk.desc}
-                    </>
-                  ) : (
-                    tk.empty
-                  )}
-                </span>
-              </span>
-              <ArrowRight className="size-6 shrink-0 text-muted transition group-hover:translate-x-0.5 group-hover:text-brand" />
-            </Link>
-          );
-        })}
+        {tasks.map((tk) => (
+          <TaskCard key={tk.href} t={tk} />
+        ))}
       </div>
 
       <section className="flex flex-col gap-3">

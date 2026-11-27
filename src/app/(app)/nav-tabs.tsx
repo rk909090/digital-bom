@@ -17,7 +17,7 @@ const isActive = (path: string, href: string) => (href === "/" ? path === "/" : 
 
 function Badge({ n, alert, className }: { n?: number; alert?: boolean; className?: string }) {
   if (!n) return null;
-  return <span className={cx("min-w-5 rounded-full px-1.5 text-center text-xs font-bold leading-5 tnum", alert ? "bg-bad text-white" : "border border-line bg-sunken text-ink-2", className)}>{n > 99 ? "99+" : n}</span>;
+  return <span className={cx("min-w-5 rounded-full px-1.5 text-center text-xs font-bold leading-5 text-white shadow-sm ring-2 ring-surface tnum", alert ? "bg-bad" : "bg-brand", className)}>{n > 99 ? "99+" : n}</span>;
 }
 
 /**
