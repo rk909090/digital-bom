@@ -81,6 +81,28 @@ Tes pengurai suara: `npm run test:voice`.
 Skrip `dev`/`start` memakai `node --use-system-ca` agar koneksi HTTPS ke layanan AI tetap jalan di jaringan/antivirus yang memeriksa HTTPS.
 Mikrofon & kamera browser butuh HTTPS di produksi (localhost dikecualikan).
 
+## Deploy (Hostinger, Node.js)
+
+Online: https://bom.psm-manajemen.com
+
+| Pengaturan build | Nilai |
+|---|---|
+| Node.js | 24 |
+| Framework | Next.js |
+| Build | `npm run build` (memakai `next build --webpack`; Turbopack gagal di shared hosting) |
+| Output | `.next` |
+
+Environment variable di Hostinger (hPanel → Website → Node.js → Environment variables):
+
+| Variabel | Isi |
+|---|---|
+| `SESSION_SECRET` | acak ≥ 32 karakter |
+| `DATABASE_URL` | `file:/home/<user>/domains/<domain>/sb-data/bakery.db` — **di luar folder aplikasi** agar data tidak hilang saat deploy ulang |
+| `APP_URL` | `https://bom.psm-manajemen.com` |
+| `OPENROUTER_API_KEY` | kunci OpenRouter untuk fitur AI |
+
+Saat server pertama kali start, migrasi database dijalankan otomatis dan data demo diisi jika database kosong (`src/lib/bootstrap.ts`). Tidak perlu terminal.
+
 ## Teknologi
 
 - Next.js 16 (App Router, Server Actions) + TypeScript, Tailwind CSS 4, ikon Lucide
