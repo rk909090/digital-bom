@@ -33,6 +33,24 @@ export async function sendWhatsApp(url: string, token: string, phone: string, te
   if (/"status"\s*:\s*false/.test(body)) throw new Error(`WhatsApp ditolak gateway: ${body.slice(0, 160)}`);
 }
 
+/**
+ * Kirim email lewat Resend (https://resend.com/docs/api-reference/emails/send-email).
+ * Teks notifikasi: baris pertama = subjek, sisanya = isi.
+ * RESEND_API_URL hanya untuk pengujian (default API resmi Resend).
+ */
+export async function sendEmail(apiKey: string, from: string, to: string, text: string) {
+  const [first, ...rest] = text.split("\n");
+  const subject = first.replace(/^\S+\s/, "").trim() || "Notifikasi Smart Bakery"; // buang ikon di depan judul
+  const res = await fetch(process.env.RESEND_API_URL ?? "https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ from, to: [to], subject: `[Smart Bakery] ${subject}`, text: [subject, "", ...rest].join("\n") }),
+    signal: AbortSignal.timeout(10_000),
+  });
+  const body = await res.text();
+  if (!res.ok) throw new Error(`Email (Resend) ${res.status}: ${body.slice(0, 160)}`);
+}
+
 /** Tambahkan pesan ke kotak keluar untuk peran-peran yang dituju. */
 export async function enqueueChannels(notificationId: number, roles: string[], text: string) {
   const s = await getSettings();
@@ -43,6 +61,8 @@ export async function enqueueChannels(notificationId: number, roles: string[], t
       for (const chat of split(s[`telegram.chat.${role}` as SettingKey])) rows.push({ notificationId, channel: "telegram", recipient: chat, role, text, status: "menunggu", createdAt: now });
     if (s["whatsapp.enabled"] === "true")
       for (const phone of split(s[`whatsapp.phone.${role}` as SettingKey])) rows.push({ notificationId, channel: "whatsapp", recipient: phone, role, text, status: "menunggu", createdAt: now });
+    if (s["email.enabled"] === "true")
+      for (const email of split(s[`email.to.${role}` as SettingKey])) rows.push({ notificationId, channel: "email", recipient: email, role, text, status: "menunggu", createdAt: now });
   }
   if (rows.length) await db.insert(t.outbox).values(rows);
   return rows.length;
@@ -76,9 +96,12 @@ async function dispatchOnce(limit: number) {
       if (m.channel === "telegram") {
         if (s["telegram.enabled"] !== "true" || !s["telegram.token"]) throw new SkipError("Telegram belum diaktifkan");
         await sendTelegram(s["telegram.token"], m.recipient, m.text);
-      } else {
+      } else if (m.channel === "whatsapp") {
         if (s["whatsapp.enabled"] !== "true" || !s["whatsapp.url"] || !s["whatsapp.token"]) throw new SkipError("WhatsApp belum diaktifkan");
         await sendWhatsApp(s["whatsapp.url"], s["whatsapp.token"], m.recipient, m.text);
+      } else {
+        if (s["email.enabled"] !== "true" || !s["email.resend.key"] || !s["email.from"]) throw new SkipError("Email belum diaktifkan");
+        await sendEmail(s["email.resend.key"], s["email.from"], m.recipient, m.text);
       }
       await db.update(t.outbox).set({ status: "terkirim", attempts: m.attempts + 1, sentAt: new Date().toISOString(), lastError: null }).where(eq(t.outbox.id, m.id));
       sent++;

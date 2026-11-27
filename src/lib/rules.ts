@@ -32,13 +32,26 @@ export function goodQty(trays: number, traySize: number, loose: number): number 
   return trays * traySize + loose;
 }
 
-export function achievement(good: number, target: number): number {
-  return target ? good / target : 0;
+/**
+ * Yield (rumus klien, Fase 4): output aktual (produk bagus) ÷ output standar BOM.
+ * Output standar BOM untuk satu batch = jumlah pcs yang seharusnya dihasilkan menurut BOM = target batch.
+ */
+export function yieldPct(good: number, standardOutput: number): number {
+  return standardOutput ? good / standardOutput : 0;
 }
 
-/** Quality yield = good ÷ (good + reject). */
-export function qualityYield(good: number, reject: number): number {
-  return good + reject ? good / (good + reject) : 0;
+/** Porsi reject dari semua produk yang dibuat. */
+export function rejectRate(good: number, reject: number): number {
+  return good + reject ? reject / (good + reject) : 0;
+}
+
+/** Produktivitas (rumus klien): output aktual ÷ jam kerja, dengan jam kerja = jumlah orang × lama kerja. Hasil: pcs per orang-jam. */
+export function laborHours(workers: number, hours: number): number {
+  return Math.max(0, workers) * Math.max(0, hours);
+}
+export function productivity(good: number, workers: number, hours: number): number | null {
+  const h = laborHours(workers, hours);
+  return h > 0 ? good / h : null;
 }
 
 export function round(n: number, d = 3): number {

@@ -7,6 +7,7 @@ import { getBatch } from "@/lib/queries";
 import { REJECT_REASONS } from "@/db/schema";
 import { goodQty } from "@/lib/rules";
 import { aiEnabled } from "@/lib/ai";
+import { getSettings, num as sNum } from "@/lib/settings";
 import { Empty, btn } from "@/components/ui";
 import { OutputStation } from "./output-station";
 
@@ -21,19 +22,23 @@ export default async function OutputPage({ params }: { params: Promise<{ code: s
   if (b.status !== "produksi" && !b.output) {
     return (
       <Empty title="Batch ini belum siap dicatat hasilnya" action={<Link href={`/batch/${b.code}`} className={btn("primary", "md")}>Lihat detail batch</Link>}>
-        Semua bahan batch {b.code} harus ditimbang lebih dulu.
+        {b.status === "adonan" || b.status === "wip"
+          ? `Adonan batch ${b.code} masih di Gudang WIP. Gudang WIP perlu mencatat adonan keluar dari freezer lebih dulu.`
+          : `Semua bahan batch ${b.code} harus ditimbang lebih dulu.`}
       </Empty>
     );
   }
   // jika hasil sudah tersimpan, tampilkan layar "sudah tersimpan" (juga setelah server memuat ulang halaman ini)
   const initialDone = b.output ? { good: goodQty(b.output.trays, b.product.traySize, b.output.loose), reject: b.rejects.reduce((a, r) => a + r.qty, 0) } : undefined;
+  const settings = await getSettings();
   return (
     <OutputStation
       batch={{ code: b.code, target: b.target, product: b.product.name, image: b.product.image, traySize: b.product.traySize }}
       reasons={REJECT_REASONS.map((r) => ({ key: r.key, label: r.label }))}
-      canHandover={can(user.role, "serahTerima") && b.status === "output"}
+      canShip={can(user.role, "pengiriman")}
       initialDone={initialDone}
       aiReady={aiEnabled()}
+      yieldMin={sNum(settings["rule.achievementMinPct"], 95) / 100}
     />
   );
 }

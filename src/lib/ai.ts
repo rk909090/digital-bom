@@ -89,7 +89,7 @@ const REPORT_SYSTEM = `Anda adalah asisten produksi untuk pabrik roti. Tulis rin
 
 Aturan:
 - Pakai HANYA angka yang ada di data. Jangan menghitung ulang, membulatkan berbeda, atau mengarang angka.
-- Paragraf pertama: 2-3 kalimat tentang hasil hari ini (bagus, target, reject, kualitas).
+- Paragraf pertama: 2-3 kalimat tentang hasil hari ini (produk bagus, standar output BOM, yield, reject, produktivitas bila ada, pengiriman bila ada). Yield = bagus ÷ standar output BOM.
 - Lalu tulis "Perlu perhatian:" diikuti maksimal 3 poin pendek berawalan "- ", hanya untuk hal yang memang ada di data (penyimpangan bahan, reject tinggi, batch belum selesai, stok menipis). Jika tidak ada, tulis "Perlu perhatian: tidak ada."
 - Tanpa judul, tanpa markdown tebal, tanpa salam pembuka atau penutup. Maksimal 130 kata.`;
 

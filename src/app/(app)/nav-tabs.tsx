@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
-import { BarChart3, BookOpen, ClipboardList, Handshake, Home, LogOut, Menu, PackageCheck, Plug, Scale, Settings, ShieldCheck, Warehouse, X } from "lucide-react";
+import { BarChart3, BookOpen, ClipboardList, Home, LogOut, Menu, PackageCheck, Plug, Scale, Settings, ShieldCheck, Snowflake, Truck, Warehouse, X } from "lucide-react";
 import { logout } from "../actions/auth";
 import { Avatar, Logo } from "@/components/logo";
 import { cx } from "@/components/ui";
 
-const ICONS = { home: Home, plan: ClipboardList, warehouse: Warehouse, scale: Scale, output: PackageCheck, handover: Handshake, verify: ShieldCheck, report: BarChart3, master: BookOpen, integration: Plug, settings: Settings };
+const ICONS = { home: Home, plan: ClipboardList, warehouse: Warehouse, scale: Scale, output: PackageCheck, freezer: Snowflake, ship: Truck, verify: ShieldCheck, report: BarChart3, master: BookOpen, integration: Plug, settings: Settings };
 
 export type NavItem = { href: string; label: string; short: string; icon: keyof typeof ICONS; badge?: number; alert?: boolean };
 type User = { name: string; color: string; role: string };
@@ -68,7 +68,7 @@ export function AppNav({ items, user, bell, mobileBell }: { items: NavItem[]; us
                     aria-current={active ? "page" : undefined}
                     title={it.label}
                     className={cx(
-                      "relative flex flex-col items-center gap-0.5 rounded-xl px-1 py-1 text-[11px] font-semibold leading-tight transition-colors xl:flex-row xl:gap-3 xl:px-3 xl:py-2 xl:text-[15px]",
+                      "relative flex flex-col items-center gap-0.5 rounded-xl px-1 py-1 text-[11px] font-semibold leading-tight transition-colors xl:flex-row xl:gap-3 xl:px-3 xl:py-1.5 xl:text-[15px]",
                       active ? "bg-brand-soft text-ink" : "text-muted hover:bg-sunken hover:text-ink",
                     )}
                   >
@@ -86,7 +86,7 @@ export function AppNav({ items, user, bell, mobileBell }: { items: NavItem[]; us
             })}
           </ul>
         </nav>
-        <div className="flex flex-col items-center gap-0.5 border-t border-line p-1.5 xl:flex-row xl:gap-2.5 xl:p-3">
+        <div className="flex items-center justify-center gap-1 border-t border-line p-1.5 xl:justify-start xl:gap-2.5 xl:p-3">
           <Avatar name={user.name} color={user.color} size={30} />
           <span className="hidden min-w-0 flex-1 leading-tight xl:block">
             <span className="block truncate text-sm font-bold">{user.name}</span>

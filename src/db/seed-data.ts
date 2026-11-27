@@ -1,4 +1,4 @@
-// Data awal (contoh) untuk uji coba Fase 1. Bisa dijalankan ulang dari menu Admin → Reset data demo.
+// Data awal (contoh) untuk uji coba (Fase 1–4). Bisa dijalankan ulang dari menu Admin → Reset data demo.
 import { eq } from "drizzle-orm";
 import type { LibSQLDatabase } from "drizzle-orm/libsql";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
@@ -12,10 +12,12 @@ type DB = LibSQLDatabase<typeof s>;
 const USERS = [
   { name: "Admin", title: "Administrator", role: "admin", pin: "0000", color: "#57534E" },
   { name: "Rina", title: "PPIC", role: "ppic", pin: "1111", color: "#7C3AED" },
-  { name: "Budi", title: "Operator", role: "operator", pin: "2222", color: "#0369A1" },
-  { name: "Sari", title: "Operator", role: "operator", pin: "3333", color: "#0F766E" },
-  { name: "Dewi", title: "Gudang", role: "gudang", pin: "4444", color: "#B45309" },
+  { name: "Budi", title: "Operator Produksi", role: "operator", pin: "2222", color: "#0369A1" },
+  { name: "Sari", title: "Operator Produksi", role: "operator", pin: "3333", color: "#0F766E" },
+  { name: "Dewi", title: "Gudang RM", role: "gudang", pin: "4444", color: "#B45309" },
   { name: "Hendra", title: "Supervisor", role: "supervisor", pin: "5555", color: "#BE123C" },
+  { name: "Wawan", title: "Gudang WIP", role: "gudang_wip", pin: "6666", color: "#1D4ED8" },
+  { name: "Putri", title: "Packing FG", role: "packing", pin: "7777", color: "#A21CAF" },
 ] as const;
 
 const MATERIALS = [
@@ -31,28 +33,28 @@ const MATERIALS = [
   { code: "AIR", name: "Air", image: "air", stock: 0, minStock: 0, tracked: false },
 ];
 
-// [kode bahan, qty per batch dasar (kg), toleransi %]
+// [kode bahan, qty per batch dasar (kg), toleransi %] — toleransi 2% sesuai keputusan klien
 type Line = [string, number, number];
 const PRODUCTS: { code: string; name: string; image: string; traySize: number; baseQty: number; note: string; lines: Line[] }[] = [
   {
     code: "CRO", name: "Croissant Original", image: "croissant", traySize: 20, baseQty: 500,
     note: "Angka tepung, butter, gula, ragi dari contoh dokumen klien; bahan lain asumsi.",
-    lines: [["TPG", 25, 5], ["BTR", 10, 5], ["GLP", 5, 5], ["RGI", 0.5, 3], ["GRM", 0.5, 3], ["SSU", 1, 5], ["TLR", 2.5, 5], ["AIR", 12, 5]],
+    lines: [["TPG", 25, 2], ["BTR", 10, 2], ["GLP", 5, 2], ["RGI", 0.5, 2], ["GRM", 0.5, 2], ["SSU", 1, 2], ["TLR", 2.5, 2], ["AIR", 12, 2]],
   },
   {
     code: "RSC", name: "Roti Sobek Cokelat", image: "roti-sobek-cokelat", traySize: 16, baseQty: 400,
     note: "Resep contoh, menunggu resep asli.",
-    lines: [["TPG", 12, 5], ["GLP", 2.4, 5], ["BTR", 1.2, 5], ["RGI", 0.24, 3], ["GRM", 0.12, 3], ["SSU", 0.6, 5], ["TLR", 1.2, 5], ["AIR", 6, 5], ["SLC", 4, 5]],
+    lines: [["TPG", 12, 2], ["GLP", 2.4, 2], ["BTR", 1.2, 2], ["RGI", 0.24, 2], ["GRM", 0.12, 2], ["SSU", 0.6, 2], ["TLR", 1.2, 2], ["AIR", 6, 2], ["SLC", 4, 2]],
   },
   {
     code: "DNG", name: "Donat Gula", image: "donat-gula", traySize: 24, baseQty: 600,
     note: "Resep contoh, menunggu resep asli.",
-    lines: [["TPG", 15, 5], ["GLP", 1.8, 5], ["BTR", 1.5, 5], ["RGI", 0.3, 3], ["GRM", 0.15, 3], ["SSU", 0.75, 5], ["TLR", 1.5, 5], ["AIR", 6.5, 5], ["GLH", 1.8, 5]],
+    lines: [["TPG", 15, 2], ["GLP", 1.8, 2], ["BTR", 1.5, 2], ["RGI", 0.3, 2], ["GRM", 0.15, 2], ["SSU", 0.75, 2], ["TLR", 1.5, 2], ["AIR", 6.5, 2], ["GLH", 1.8, 2]],
   },
   {
     code: "RTW", name: "Roti Tawar", image: "roti-tawar", traySize: 10, baseQty: 100,
     note: "Resep contoh, menunggu resep asli.",
-    lines: [["TPG", 35, 5], ["GLP", 2.1, 5], ["BTR", 1.75, 5], ["RGI", 0.5, 3], ["GRM", 0.6, 3], ["SSU", 1.4, 5], ["AIR", 22, 5]],
+    lines: [["TPG", 35, 2], ["GLP", 2.1, 2], ["BTR", 1.75, 2], ["RGI", 0.5, 2], ["GRM", 0.6, 2], ["SSU", 1.4, 2], ["AIR", 22, 2]],
   },
 ];
 
@@ -127,45 +129,65 @@ export async function seedDatabase(db: DB) {
     }
   }
 
-  async function output(batchId: number, day: number, trays: number, loose: number, rejects: Record<string, number>) {
-    await db.insert(s.outputs).values({ batchId, trays, loose, recordedBy: uid("Sari"), recordedAt: ts(day, 11, 15) });
+  async function output(batchId: number, day: number, trays: number, loose: number, rejects: Record<string, number>, workers: number, hours: number) {
+    await db.insert(s.outputs).values({ batchId, trays, loose, workers, hours, recordedBy: uid("Sari"), recordedAt: ts(day, 11, 15) });
     const rows = Object.entries(rejects).filter(([, q]) => q > 0).map(([reason, qty]) => ({ batchId, reason, qty }));
     if (rows.length) await db.insert(s.outputRejects).values(rows);
   }
 
-  async function handover(batchId: number, code: string, day: number, sent: number, recv: number) {
-    await db.insert(s.handovers).values({ batchId, code: `ST-${code}`, qtySent: sent, qtyReceived: recv, receivedBy: uid("Dewi"), receivedAt: ts(day, 13, 0) });
+  /** Pengiriman FG oleh Packing FG, disetujui sistem. */
+  async function ship(batchId: number, code: string, day: number, qty: number, destination: string) {
+    await db.insert(s.handovers).values({ batchId, code: "KRM-" + code, destination, qtySent: qty, qtyReceived: qty, receivedBy: uid("Putri"), receivedAt: ts(day, 13, 0) });
+  }
+
+  /** Adonan masuk freezer (dan opsional keluar) oleh Gudang WIP. Berat adonan = total bahan yang ditimbang. */
+  async function freezer(batchId: number, inAt: string, outAt?: string) {
+    const rows = await db.query.batchMaterials.findMany({ where: (bm, { eq }) => eq(bm.batchId, batchId) });
+    const doughKg = Math.round(rows.reduce((acc, r) => acc + (r.actualQty ?? 0), 0) * 100) / 100;
+    await db
+      .update(s.batches)
+      .set({ doughKg, wipInAt: inAt, wipInBy: uid("Wawan"), status: outAt ? "produksi" : "wip", ...(outAt ? { wipOutAt: outAt, wipOutBy: uid("Wawan") } : {}) })
+      .where(eqId(s.batches.id, batchId));
   }
 
   const setStatus = (id: number, status: s.BatchStatus, extra: Partial<typeof s.batches.$inferInsert> = {}) =>
     db.update(s.batches).set({ status, ...extra }).where(eqId(s.batches.id, id));
 
-  // ---- Kemarin: 2 order selesai & ditutup ----
+  // ---- Kemarin: 2 order selesai, dikirim, ditutup ----
   const [dng] = await makeOrder("DNG", 600, -1, "diserahkan");
   await weigh(dng.id, -1, "Budi");
-  await output(dng.id, -1, 24, 12, { gosong: 5, bentuk: 4, kembang: 3 });
-  await handover(dng.id, dng.code, -1, goodQty(24, 24, 12), goodQty(24, 24, 12));
+  await freezer(dng.id, ts(-1, 7, 45), ts(-1, 9, 30));
+  await output(dng.id, -1, 24, 12, { proving: 7, oven: 5 }, 4, 3);
+  await ship(dng.id, dng.code, -1, goodQty(24, 24, 12), "Gudang FG");
   await setStatus(dng.id, "ditutup", { closedAt: ts(-1, 15, 0), closedBy: uid("Hendra") });
 
   const [rtw] = await makeOrder("RTW", 100, -1, "diserahkan");
   await weigh(rtw.id, -1, "Sari");
-  await output(rtw.id, -1, 9, 7, { kembang: 2, bentuk: 1 });
-  await handover(rtw.id, rtw.code, -1, 97, 97);
+  await freezer(rtw.id, ts(-1, 8, 0), ts(-1, 10, 0));
+  await output(rtw.id, -1, 9, 7, { proving: 2, oven: 1 }, 2, 2.5);
+  await ship(rtw.id, rtw.code, -1, 97, "Outlet 1");
   await setStatus(rtw.id, "ditutup", { closedAt: ts(-1, 15, 30), closedBy: uid("Hendra") });
 
   // ---- Hari ini ----
   const [cro1, cro2] = await makeOrder("CRO", 1000, 0, "diserahkan");
-  // Batch 2 lebih dulu: selesai ditimbang, butter kelebihan +12% (contoh notifikasi dokumen klien), output tercatat
+  // Batch 2: butter kelebihan +12% (contoh notifikasi dokumen klien), sudah keluar freezer, hasil tercatat, menunggu dikirim
   await weigh(cro2.id, 0, "Budi", { BTR: 1.12 }, undefined, "Adonan terlalu kering, butter ditambah");
-  await output(cro2.id, 0, 23, 15, { gosong: 4, bentuk: 3 });
+  await freezer(cro2.id, ts(0, 7, 40), ts(0, 9, 0));
+  await output(cro2.id, 0, 23, 15, { proving: 4, oven: 3 }, 3, 2.5);
   await setStatus(cro2.id, "output");
   // Batch 1: sedang ditimbang (2 dari 8 bahan)
   await weigh(cro1.id, 0, "Budi", { TPG: 1, BTR: 1.004 }, ["TPG", "BTR"]);
   await setStatus(cro1.id, "ditimbang");
 
+  // Roti sobek: adonan sudah di freezer (WIP)
   const [rsc] = await makeOrder("RSC", 400, 0, "diserahkan");
   await weigh(rsc.id, 0, "Sari");
-  await setStatus(rsc.id, "produksi");
+  await freezer(rsc.id, ts(0, 8, 10));
+
+  // Donat: adonan sudah keluar freezer, sedang diproduksi (siap dicatat hasilnya)
+  const [dng2] = await makeOrder("DNG", 600, 0, "diserahkan");
+  await weigh(dng2.id, 0, "Budi");
+  await freezer(dng2.id, ts(0, 7, 30), ts(0, 9, 45));
 
   // Order baru, bahan belum disiapkan gudang
   await makeOrder("RTW", 200, 0, "baru");

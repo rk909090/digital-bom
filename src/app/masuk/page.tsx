@@ -9,7 +9,7 @@ import { Logo } from "@/components/logo";
 export const metadata: Metadata = { title: "Masuk" };
 export const dynamic = "force-dynamic";
 
-const DEMO_PINS: Record<string, string> = { Admin: "0000", Rina: "1111", Budi: "2222", Sari: "3333", Dewi: "4444", Hendra: "5555" };
+const DEMO_PINS: Record<string, string> = { Admin: "0000", Rina: "1111", Budi: "2222", Sari: "3333", Dewi: "4444", Hendra: "5555", Wawan: "6666", Putri: "7777" };
 
 export default async function LoginPage() {
   if (await getUser()) redirect("/");

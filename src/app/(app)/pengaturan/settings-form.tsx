@@ -2,7 +2,7 @@
 
 import { useState, useTransition, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Bot, Copy, KeyRound, Loader2, MessageCircle, Play, Save, Send, Sparkles, Webhook, Gauge, FileText } from "lucide-react";
+import { Bot, Copy, FileText, Gauge, KeyRound, Loader2, Mail, MessageCircle, Play, Save, Send, Sparkles, Truck, Webhook } from "lucide-react";
 import { makeDailyReport, regenerate, runAgentNow, saveSettings, testChannel, testWebhook } from "@/app/actions/pengaturan";
 import { dateTime } from "@/lib/format";
 import { Card, Pill, btn, cx } from "@/components/ui";
@@ -13,8 +13,10 @@ type Run = { id: number; startedAt: string; trigger: string; alerts: number; sen
 const ROLES = [
   ["supervisor", "Supervisor"],
   ["ppic", "PPIC"],
-  ["gudang", "Gudang"],
-  ["operator", "Operator"],
+  ["gudang", "Gudang RM"],
+  ["gudang_wip", "Gudang WIP"],
+  ["operator", "Operator Produksi"],
+  ["packing", "Packing FG"],
 ] as const;
 
 export function SettingsForm({ values, masked, aiReady, aiLabel, runs }: { values: V; masked: V; aiReady: boolean; aiLabel: string; runs: Run[] }) {
@@ -74,7 +76,9 @@ export function SettingsForm({ values, masked, aiReady, aiLabel, runs }: { value
             </RoleRow>
           ))}
         </RoleGrid>
-        <SaveBtn busy={busy === "tg"} onClick={() => save("tg", ["telegram.enabled", "telegram.token", ...ROLES.map(([r]) => `telegram.chat.${r}`)])} />
+        <Actions>
+          <SaveBtn busy={busy === "tg"} onClick={() => save("tg", ["telegram.enabled", "telegram.token", ...ROLES.map(([r]) => `telegram.chat.${r}`)])} />
+        </Actions>
       </Section>
 
       {/* WhatsApp */}
@@ -91,11 +95,46 @@ export function SettingsForm({ values, masked, aiReady, aiLabel, runs }: { value
             </RoleRow>
           ))}
         </RoleGrid>
-        <SaveBtn busy={busy === "wa"} onClick={() => save("wa", ["whatsapp.enabled", "whatsapp.url", "whatsapp.token", ...ROLES.map(([r]) => `whatsapp.phone.${r}`)])} />
+        <Actions>
+          <SaveBtn busy={busy === "wa"} onClick={() => save("wa", ["whatsapp.enabled", "whatsapp.url", "whatsapp.token", ...ROLES.map(([r]) => `whatsapp.phone.${r}`)])} />
+        </Actions>
+      </Section>
+
+      {/* Email (Resend) */}
+      <Section icon={<Mail />} title="Notifikasi Email (Resend)" desc="Notifikasi dan laporan harian dikirim lewat email memakai layanan Resend (resend.com). Kolom sudah disiapkan; isi API key dan alamat pengirim saat akun Resend siap." toggle={<Toggle id="em-on" on={v["email.enabled"] === "true"} set={(b) => set("email.enabled", String(b))} />}>
+        <div className="grid gap-3 md:grid-cols-2">
+          <Field label="API key Resend" hint="Dibuat di dashboard Resend → API Keys. Disimpan tersembunyi.">
+            <input id="em-key" type="password" autoComplete="off" value={v["email.resend.key"]} onChange={(e) => set("email.resend.key", e.target.value)} placeholder={masked["email.resend.key"] || "re_…"} className={inp} />
+          </Field>
+          <Field label="Alamat pengirim" hint="Domainnya harus sudah diverifikasi di Resend.">
+            <input id="em-from" value={v["email.from"]} onChange={(e) => set("email.from", e.target.value)} placeholder="Smart Bakery <notifikasi@domainanda.com>" className={inp} />
+          </Field>
+        </div>
+        <RoleGrid>
+          {ROLES.map(([r, label]) => (
+            <RoleRow key={r} label={label}>
+              <input id={`em-${r}`} type="text" inputMode="email" autoComplete="off" value={v[`email.to.${r}`]} onChange={(e) => set(`email.to.${r}`, e.target.value)} placeholder="nama@perusahaan.com (pisahkan koma)" className={inp} />
+              <button type="button" className={btn("secondary", "md")} disabled={busy === `em-${r}`} onClick={() => run(`em-${r}`, () => testChannel("email", r), () => `Email tes terkirim ke ${label}.`)}>Tes</button>
+            </RoleRow>
+          ))}
+        </RoleGrid>
+        <Actions>
+          <SaveBtn busy={busy === "em"} onClick={() => save("em", ["email.enabled", "email.resend.key", "email.from", ...ROLES.map(([r]) => `email.to.${r}`)])} />
+        </Actions>
+      </Section>
+
+      {/* Tujuan pengiriman */}
+      <Section icon={<Truck />} title="Tujuan pengiriman produk jadi" desc="Pilihan tujuan yang muncul di layar Pengiriman FG (Packing FG). Satu tujuan per baris, mis. Gudang FG atau nama outlet.">
+        <Field label="Daftar tujuan">
+          <textarea id="fg-dest" rows={4} value={v["fg.destinations"]} onChange={(e) => set("fg.destinations", e.target.value)} className="w-full min-w-0 rounded-xl border border-line-strong bg-surface px-3 py-2.5 text-base leading-relaxed" />
+        </Field>
+        <Actions>
+          <SaveBtn busy={busy === "fg"} onClick={() => save("fg", ["fg.destinations"])} />
+        </Actions>
       </Section>
 
       {/* ERP */}
-      <Section icon={<Webhook />} title="Integrasi ERP" desc="Dokumen posting (pemakaian bahan, penerimaan FG, penyelesaian produksi, barang masuk) dikirim ke webhook ERP dan/atau diambil ERP lewat API." toggle={<Toggle id="erp-on" on={v["erp.webhook.enabled"] === "true"} set={(b) => set("erp.webhook.enabled", String(b))} />}>
+      <Section icon={<Webhook />} title="Integrasi ERP" desc="Dokumen posting (penerimaan bahan, pemakaian bahan, WIP masuk/keluar freezer, pengiriman FG, penyelesaian produksi) dikirim ke webhook ERP dan/atau diambil ERP lewat API. Data juga bisa diekspor ke Excel dari halaman Integrasi ERP atau Laporan." toggle={<Toggle id="erp-on" on={v["erp.webhook.enabled"] === "true"} set={(b) => set("erp.webhook.enabled", String(b))} />}>
         <Field label="URL webhook ERP" hint="Menerima POST JSON. Header X-SmartBakery-Signature = sha256 HMAC dari body dengan rahasia di bawah.">
           <input id="erp-url" value={v["erp.webhook.url"]} onChange={(e) => set("erp.webhook.url", e.target.value)} placeholder="https://erp.perusahaan.co.id/hooks/produksi" className={inp} />
         </Field>
@@ -104,12 +143,12 @@ export function SettingsForm({ values, masked, aiReady, aiLabel, runs }: { value
           <code className="rounded bg-sunken px-2 py-1">{masked["erp.webhook.secret"]}</code>
           <button type="button" className={btn("ghost", "sm")} onClick={() => run("sec", () => regenerate("erp.webhook.secret"), () => "Rahasia webhook diganti. Perbarui juga di ERP.")}><KeyRound className="size-4" /> Ganti</button>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <Actions>
           <SaveBtn busy={busy === "erp"} onClick={() => save("erp", ["erp.webhook.enabled", "erp.webhook.url"])} />
           <button type="button" className={btn("secondary", "md")} disabled={busy === "wh"} onClick={() => run("wh", testWebhook, (d) => `Webhook membalas HTTP ${(d as { status: number }).status}.`)}>
             {busy === "wh" ? <Loader2 className="size-5 animate-spin" /> : <Webhook className="size-5" />} Tes webhook
           </button>
-        </div>
+        </Actions>
         <div className="flex flex-col gap-2 rounded-xl border border-line bg-sunken p-4 text-sm">
           <p className="font-semibold">API untuk ERP (tarik data)</p>
           <div className="flex flex-wrap items-center gap-2">
@@ -132,29 +171,39 @@ export function SettingsForm({ values, masked, aiReady, aiLabel, runs }: { value
       <Section icon={<Gauge />} title="Aturan pemantauan" desc="Digital Agent memberi peringatan jika batas ini terlewati.">
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <NumField id="r1" label="Batch belum selesai ditimbang" unit="jam" v={v["rule.weighStaleHours"]} set={(x) => set("rule.weighStaleHours", x)} />
-          <NumField id="r2" label="Hasil belum diterima gudang" unit="jam" v={v["rule.handoverStaleHours"]} set={(x) => set("rule.handoverStaleHours", x)} />
+          <NumField id="r2" label="Adonan belum masuk freezer / produk belum dikirim" unit="jam" v={v["rule.handoverStaleHours"]} set={(x) => set("rule.handoverStaleHours", x)} />
           <NumField id="r3" label="Penyimpangan belum diperiksa" unit="jam" v={v["rule.exceptionStaleHours"]} set={(x) => set("rule.exceptionStaleHours", x)} />
-          <NumField id="r4" label="Pencapaian target minimal" unit="%" v={v["rule.achievementMinPct"]} set={(x) => set("rule.achievementMinPct", x)} />
+          <NumField id="r4" label="Yield minimal (vs standar output BOM)" unit="%" v={v["rule.achievementMinPct"]} set={(x) => set("rule.achievementMinPct", x)} />
           <NumField id="r5" label="Reject maksimal" unit="%" v={v["rule.rejectMaxPct"]} set={(x) => set("rule.rejectMaxPct", x)} />
         </div>
-        <SaveBtn busy={busy === "rule"} onClick={() => save("rule", ["rule.weighStaleHours", "rule.handoverStaleHours", "rule.exceptionStaleHours", "rule.achievementMinPct", "rule.rejectMaxPct"])} />
+        <Actions>
+          <SaveBtn busy={busy === "rule"} onClick={() => save("rule", ["rule.weighStaleHours", "rule.handoverStaleHours", "rule.exceptionStaleHours", "rule.achievementMinPct", "rule.rejectMaxPct"])} />
+        </Actions>
       </Section>
 
       {/* Laporan */}
-      <Section icon={<FileText />} title="Laporan harian otomatis" desc="Dikirim ke Supervisor dan PPIC setiap hari pada jam yang dipilih (WIB)." toggle={<Toggle id="rep-on" on={v["report.enabled"] === "true"} set={(b) => set("report.enabled", String(b))} />}>
-        <div className="flex flex-wrap items-end gap-3">
+      <Section icon={<FileText />} title="Laporan harian otomatis" desc="Dikirim ke Supervisor dan PPIC setiap hari pada jam yang dipilih (WIB), lewat kanal yang aktif (Telegram, WhatsApp, Email)." toggle={<Toggle id="rep-on" on={v["report.enabled"] === "true"} set={(b) => set("report.enabled", String(b))} />}>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <NumField id="rep-h" label="Jam kirim" unit=":00 WIB" v={v["report.hour"]} set={(x) => set("report.hour", x)} />
+        </div>
+        <Actions>
           <SaveBtn busy={busy === "rep"} onClick={() => save("rep", ["report.enabled", "report.hour"])} />
           <button type="button" className={btn("secondary", "md")} disabled={busy === "mk"} onClick={() => run("mk", makeDailyReport, (d) => ((d as { source: string }).source === "ai" ? "Laporan harian dibuat dengan ringkasan AI dan dikirim." : "Laporan harian dibuat (ringkasan template) dan dikirim."))}>
             {busy === "mk" ? <Loader2 className="size-5 animate-spin" /> : <FileText className="size-5" />} Buat & kirim sekarang
           </button>
-        </div>
+        </Actions>
       </Section>
     </div>
   );
 }
 
-const inp = "h-12 w-full min-w-0 rounded-xl border border-line-strong bg-surface px-3 text-base";
+/** Semua kontrol di halaman ini setinggi 44 px (sama dengan tombol ukuran md) agar sejajar. */
+const inp = "h-11 w-full min-w-0 rounded-xl border border-line-strong bg-surface px-3 text-base";
+
+/** Baris tombol di bagian bawah setiap kartu: rata kiri, tinggi seragam, dipisah garis tipis. */
+function Actions({ children }: { children: ReactNode }) {
+  return <div className="flex flex-wrap items-center gap-2 border-t border-line pt-4">{children}</div>;
+}
 
 function Section({ icon, title, desc, toggle, children }: { icon: ReactNode; title: string; desc: string; toggle?: ReactNode; children: ReactNode }) {
   return (
@@ -209,10 +258,10 @@ function RoleRow({ label, children }: { label: string; children: ReactNode }) {
 
 function NumField({ id, label, unit, v, set }: { id: string; label: string; unit: string; v: string; set: (x: string) => void }) {
   return (
-    <label htmlFor={id} className="flex flex-col gap-1.5">
-      <span className="font-semibold">{label}</span>
+    <label htmlFor={id} className="flex h-full flex-col gap-1.5">
+      <span className="flex-1 font-semibold leading-snug">{label}</span>
       <span className="flex items-center gap-2">
-        <input id={id} inputMode="decimal" value={v} onChange={(e) => set(e.target.value.replace(/[^\d.,]/g, ""))} className="h-12 w-24 rounded-xl border border-line-strong px-3 text-right text-lg font-semibold tnum" />
+        <input id={id} inputMode="decimal" value={v} onChange={(e) => set(e.target.value.replace(/[^\d.,]/g, ""))} className="h-11 w-24 rounded-xl border border-line-strong bg-surface px-3 text-right text-lg font-semibold tnum" />
         <span className="text-muted">{unit}</span>
       </span>
     </label>
@@ -221,7 +270,7 @@ function NumField({ id, label, unit, v, set }: { id: string; label: string; unit
 
 function SaveBtn({ busy, onClick }: { busy: boolean; onClick: () => void }) {
   return (
-    <button type="button" disabled={busy} onClick={onClick} className={btn("primary", "md", "self-start")}>
+    <button type="button" disabled={busy} onClick={onClick} className={btn("primary", "md")}>
       {busy ? <Loader2 className="size-5 animate-spin" /> : <Save className="size-5" />} Simpan
     </button>
   );

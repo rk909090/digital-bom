@@ -6,7 +6,7 @@ import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/access";
 import { getBatch } from "@/lib/queries";
 import { REJECT_REASONS } from "@/db/schema";
-import { achievement, goodQty, isOutOfTolerance, qualityYield, variance } from "@/lib/rules";
+import { goodQty, isOutOfTolerance, productivity, rejectRate, variance, yieldPct } from "@/lib/rules";
 import { dateLong, dateTime, num, pct, pctSigned, weight, weightSigned } from "@/lib/format";
 import { Card, PageHeader, Pill, SectionTitle, StatusPill, Thumb, btn, cx } from "@/components/ui";
 
@@ -28,15 +28,18 @@ export default async function BatchPage({ params }: { params: Promise<{ code: st
   const steps = [
     { label: "Direncanakan", done: true, who: null, at: b.createdAt },
     { label: "Bahan ditimbang", done: weighed.length === b.materials.length, who: `${weighed.length}/${b.materials.length} bahan`, at: weighed.length === b.materials.length ? lastWeigh : null },
+    { label: "Masuk freezer", done: !!b.wipInAt, who: b.wipInAt ? `${b.doughKg != null ? weight(b.doughKg) : "-"} · ${b.wipInUser?.name ?? "-"}` : null, at: b.wipInAt },
+    { label: "Keluar freezer", done: !!b.wipOutAt, who: b.wipOutUser?.name, at: b.wipOutAt },
     { label: "Hasil dicatat", done: !!b.output, who: b.output?.recorder?.name, at: b.output?.recordedAt },
-    { label: "Diterima gudang", done: !!b.handover, who: b.handover?.receiver?.name, at: b.handover?.receivedAt },
+    { label: "Dikirim", done: !!b.handover, who: b.handover ? `${b.handover.destination} · ${b.handover.receiver?.name ?? "-"}` : null, at: b.handover?.receivedAt },
     { label: "Ditutup", done: b.status === "ditutup", who: b.closer?.name, at: b.closedAt },
   ];
 
   const action =
     (b.status === "menunggu" || b.status === "ditimbang") && can(user.role, "timbang") ? { href: `/timbang/${b.code}`, label: "Timbang bahan" }
+    : (b.status === "adonan" || b.status === "wip") && can(user.role, "wip") ? { href: "/wip", label: b.status === "adonan" ? "Masukkan ke freezer" : "Keluarkan dari freezer" }
     : b.status === "produksi" && can(user.role, "output") ? { href: `/output/${b.code}`, label: "Catat hasil produksi" }
-    : b.status === "output" && can(user.role, "serahTerima") ? { href: `/serah-terima/${b.code}`, label: "Serah terima" }
+    : b.status === "output" && can(user.role, "pengiriman") ? { href: `/pengiriman/${b.code}`, label: "Kirim produk jadi" }
     : b.status === "diterima" && can(user.role, "verifikasi") ? { href: "/verifikasi", label: openEx.length ? "Periksa penyimpangan" : "Tutup batch" }
     : null;
 
@@ -55,7 +58,7 @@ export default async function BatchPage({ params }: { params: Promise<{ code: st
         }
         subtitle={
           <>
-            Batch <span className="font-mono font-semibold text-ink-2">{b.code}</span> · {dateLong(b.date)} · Target {num(b.target)} pcs · Order {b.order.code}
+            Batch <span className="font-mono font-semibold text-ink-2">{b.code}</span> · {dateLong(b.date)} · Standar output {num(b.target)} pcs · Order {b.order.code}
           </>
         }
         actions={action ? <Link href={action.href} className={btn("primary", "lg")}>{action.label}</Link> : undefined}
@@ -63,12 +66,12 @@ export default async function BatchPage({ params }: { params: Promise<{ code: st
 
       {/* linimasa */}
       <Card className="p-5">
-        <ol className="grid gap-4 sm:grid-cols-5">
+        <ol className="grid gap-4 sm:grid-cols-4 xl:grid-cols-7">
           {steps.map((s, i) => (
             <li key={s.label} className="flex gap-3 sm:flex-col">
               <div className="flex items-center gap-2 sm:w-full">
                 <span className={cx("flex size-9 shrink-0 items-center justify-center rounded-full font-bold", s.done ? "bg-good text-white" : "border-2 border-line-strong text-muted")}>{s.done ? <Check className="size-5" strokeWidth={3} /> : i + 1}</span>
-                {i < steps.length - 1 && <span className={cx("hidden h-1 flex-1 rounded sm:block", s.done ? "bg-good" : "bg-line")} />}
+                {i < steps.length - 1 && <span className={cx("hidden h-1 flex-1 rounded xl:block", s.done ? "bg-good" : "bg-line")} />}
               </div>
               <div className="leading-tight">
                 <p className={cx("font-bold", !s.done && "text-muted")}>{s.label}</p>
@@ -158,12 +161,24 @@ export default async function BatchPage({ params }: { params: Promise<{ code: st
                   <p className="text-3xl font-extrabold text-bad tnum">{num(reject)}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted">Dibanding target</p>
-                  <p className="text-2xl font-bold tnum">{pct(achievement(good, b.target))}</p>
+                  <p className="text-sm text-muted">Yield (vs standar BOM)</p>
+                  <p className="text-2xl font-bold tnum">{pct(yieldPct(good, b.target))}</p>
+                  <p className="text-sm text-muted tnum">{num(good)} ÷ {num(b.target)} pcs</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted">Kualitas (yield)</p>
-                  <p className="text-2xl font-bold tnum">{pct(qualityYield(good, reject))}</p>
+                  <p className="text-sm text-muted">Reject</p>
+                  <p className="text-2xl font-bold tnum">{pct(rejectRate(good, reject))}</p>
+                  <p className="text-sm text-muted">dari total dibuat</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted">Jam kerja</p>
+                  <p className="text-2xl font-bold tnum">{b.output.workers ? `${b.output.workers} × ${num(b.output.hours, 1)} jam` : "–"}</p>
+                  {b.output.workers > 0 && <p className="text-sm text-muted tnum">{num(b.output.workers * b.output.hours, 1)} orang-jam</p>}
+                </div>
+                <div>
+                  <p className="text-sm text-muted">Produktivitas</p>
+                  <p className="text-2xl font-bold tnum">{productivity(good, b.output.workers, b.output.hours) != null ? num(productivity(good, b.output.workers, b.output.hours)!, 1) : "–"}</p>
+                  <p className="text-sm text-muted">pcs per orang-jam</p>
                 </div>
               </div>
               {b.rejects.length > 0 && (
@@ -178,8 +193,9 @@ export default async function BatchPage({ params }: { params: Promise<{ code: st
               {b.handover && (
                 <p className="flex items-center gap-2 border-t border-line pt-3 text-[15px]">
                   <CheckCircle2 className="size-5 text-good" />
-                  Diterima gudang <b className="tnum">{num(b.handover.qtyReceived)} pcs</b>
-                  <span className="text-muted">({b.handover.code})</span>
+                  <span>
+                    Dikirim ke <b>{b.handover.destination}</b>: <b className="tnum">{num(b.handover.qtySent)} pcs</b> <span className="text-muted">({b.handover.code})</span>
+                  </span>
                 </p>
               )}
             </Card>

@@ -22,6 +22,8 @@ export async function getBatch(code: string) {
       ...batchWith,
       order: true,
       closer: true,
+      wipInUser: true,
+      wipOutUser: true,
       materials: { with: { material: true, weigher: true }, orderBy: asc(t.batchMaterials.sort) },
       output: { with: { recorder: true } },
       handover: { with: { receiver: true } },
@@ -49,6 +51,7 @@ export function summarize(b: Awaited<ReturnType<typeof db.query.batches.findMany
     id: b.id, code: b.code, date: b.date, target: b.target, status: b.status,
     product: b.product, weighed, totalLines: b.materials.length, good, reject, openEx,
     received: b.handover?.qtyReceived ?? null,
+    destination: b.handover?.destination ?? null,
   };
 }
 export type BatchSummary = ReturnType<typeof summarize>;
@@ -154,8 +157,10 @@ export async function navCounts() {
   const c = (s: string[]) => bs.filter((b) => s.includes(b.status)).length;
   return {
     timbang: c(["menunggu", "ditimbang"]),
+    wip: c(["adonan", "wip"]),
+    wipReady: c(["adonan"]),
     output: c(["produksi"]),
-    serahTerima: c(["output"]),
+    pengiriman: c(["output"]),
     tutup: c(["diterima"]),
     verifikasi: ex,
     gudang: rq,

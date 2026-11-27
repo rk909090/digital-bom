@@ -71,9 +71,11 @@ export function Pill({ tone = "neutral", children, className }: { tone?: Tone; c
 export const STATUS: Record<BatchStatus, { label: string; tone: Tone; hint: string }> = {
   menunggu: { label: "Menunggu ditimbang", tone: "neutral", hint: "Bahan belum ditimbang" },
   ditimbang: { label: "Sedang ditimbang", tone: "info", hint: "Sebagian bahan sudah ditimbang" },
-  produksi: { label: "Sedang diproduksi", tone: "brand", hint: "Semua bahan siap, menunggu hasil" },
-  output: { label: "Menunggu serah terima", tone: "warn", hint: "Hasil sudah dicatat" },
-  diterima: { label: "Diterima gudang", tone: "good", hint: "Siap ditutup supervisor" },
+  adonan: { label: "Adonan siap ke freezer", tone: "warn", hint: "Semua bahan sudah ditimbang" },
+  wip: { label: "Di freezer (WIP)", tone: "info", hint: "Adonan disimpan di Gudang WIP" },
+  produksi: { label: "Sedang diproduksi", tone: "brand", hint: "Adonan keluar freezer, menunggu hasil" },
+  output: { label: "Menunggu dikirim", tone: "warn", hint: "Hasil sudah dicatat" },
+  diterima: { label: "Sudah dikirim", tone: "good", hint: "Siap ditutup supervisor" },
   ditutup: { label: "Selesai", tone: "neutral", hint: "Batch ditutup" },
 };
 

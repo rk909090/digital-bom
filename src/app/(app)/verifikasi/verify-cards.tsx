@@ -137,7 +137,7 @@ export function ExceptionCard({ e }: { e: ExView }) {
   );
 }
 
-export function CloseBatchCard({ b }: { b: { code: string; product: string; image: string | null; target: number; good: number; reject: number; received: number; openEx: number } }) {
+export function CloseBatchCard({ b }: { b: { code: string; product: string; image: string | null; target: number; good: number; reject: number; received: number; destination: string | null; openEx: number } }) {
   const [pending, start] = useTransition();
   const [ask, setAsk] = useState(false);
   const router = useRouter();
@@ -161,12 +161,13 @@ export function CloseBatchCard({ b }: { b: { code: string; product: string; imag
           <dd className="text-lg font-bold tnum">{num(b.good)}</dd>
         </div>
         <div>
-          <dt className="text-muted">Target</dt>
+          <dt className="text-muted">Yield</dt>
           <dd className="text-lg font-bold tnum">{pct(b.good / b.target)}</dd>
         </div>
         <div>
-          <dt className="text-muted">Diterima</dt>
+          <dt className="text-muted">Dikirim</dt>
           <dd className="text-lg font-bold tnum">{num(b.received)}</dd>
+          {b.destination && <dd className="truncate text-xs text-muted">{b.destination}</dd>}
         </div>
       </dl>
       {blocked && (

@@ -67,7 +67,7 @@ export async function saveWeighing(input: { batchMaterialId: number; actual: num
       }
       const rows = await tx.select({ a: t.batchMaterials.actualQty }).from(t.batchMaterials).where(eq(t.batchMaterials.batchId, bm.batchId));
       const allDone = rows.every((r) => r.a != null);
-      await tx.update(t.batches).set({ status: allDone ? "produksi" : "ditimbang" }).where(eq(t.batches.id, bm.batchId));
+      await tx.update(t.batches).set({ status: allDone ? "adonan" : "ditimbang" }).where(eq(t.batches.id, bm.batchId));
       await logActivity(tx, user.id, "timbang", bm.batch.code, `${bm.material.name} ${actual} kg (${input.source})${out ? ` → ${exCode}` : ""}`);
       return { allDone, exCode };
     });

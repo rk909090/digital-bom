@@ -15,7 +15,7 @@ export default async function OutputList() {
       <PageHeader title="Catat Hasil Produksi" subtitle="Pilih batch yang sudah keluar dari oven, lalu hitung tray dan produk reject." />
       {list.length === 0 ? (
         <Empty title="Belum ada batch yang selesai diproduksi" icon={<PackageCheck />}>
-          Batch muncul di sini setelah semua bahannya selesai ditimbang.
+          Batch muncul di sini setelah Gudang WIP mencatat adonannya keluar dari freezer.
         </Empty>
       ) : (
         <div className="grid gap-3 lg:grid-cols-2">

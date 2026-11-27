@@ -20,13 +20,13 @@ export function BatchCard({ b, href, cta, showDate }: { b: BatchSummary; href?: 
           )}
         </div>
         <div className="mt-0.5 text-sm text-muted">
-          <span className="font-mono font-semibold text-ink-2">{b.code}</span> · Target {num(b.target)} pcs{showDate && ` · ${dateShort(b.date)}`}
+          <span className="font-mono font-semibold text-ink-2">{b.code}</span> · Standar {num(b.target)} pcs{showDate && ` · ${dateShort(b.date)}`}
         </div>
         <div className="mt-2">
           {b.good != null ? (
             <p className="text-sm">
               <b className="text-good tnum">{num(b.good)} pcs bagus</b>
-              <span className="text-muted"> · {pct(b.good / b.target)} dari target · reject {num(b.reject ?? 0)}</span>
+              <span className="text-muted"> · yield {pct(b.good / b.target)} · reject {num(b.reject ?? 0)}</span>
             </p>
           ) : (
             <div className="flex items-center gap-3">

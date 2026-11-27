@@ -1,14 +1,16 @@
 import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 
-export const ROLES = ["admin", "ppic", "gudang", "operator", "supervisor"] as const;
+export const ROLES = ["admin", "ppic", "gudang", "gudang_wip", "packing", "operator", "supervisor"] as const;
 export type Role = (typeof ROLES)[number];
 
 export const BATCH_STATUS = [
   "menunggu", // belum ada bahan ditimbang
   "ditimbang", // sebagian bahan sudah ditimbang
-  "produksi", // semua bahan selesai, sedang diproduksi (WIP)
-  "output", // output sudah dicatat, menunggu serah terima
-  "diterima", // FG sudah diterima gudang
+  "adonan", // semua bahan selesai ditimbang, adonan siap masuk freezer
+  "wip", // adonan di freezer (Gudang WIP)
+  "produksi", // adonan keluar freezer, sedang dibuat/dipanggang
+  "output", // hasil sudah dicatat, menunggu dikirim (Packing FG)
+  "diterima", // FG sudah dikirim ke gudang/outlet (disetujui sistem)
   "ditutup",
 ] as const;
 export type BatchStatus = (typeof BATCH_STATUS)[number];
@@ -82,6 +84,12 @@ export const batches = sqliteTable("batches", {
   target: integer("target").notNull(),
   status: text("status", { enum: BATCH_STATUS }).notNull(),
   createdAt: text("created_at").notNull(),
+  // tahap WIP (adonan di freezer)
+  doughKg: real("dough_kg"),
+  wipInAt: text("wip_in_at"),
+  wipInBy: integer("wip_in_by").references(() => users.id),
+  wipOutAt: text("wip_out_at"),
+  wipOutBy: integer("wip_out_by").references(() => users.id),
   closedAt: text("closed_at"),
   closedBy: integer("closed_by").references(() => users.id),
 });
@@ -126,16 +134,16 @@ export const outputs = sqliteTable("outputs", {
   trays: integer("trays").notNull(),
   loose: integer("loose").notNull(),
   source: text("source", { enum: ["manual", "kamera"] }).notNull().default("manual"),
+  // jam kerja untuk produktivitas: jumlah orang x lama kerja (jam)
+  workers: integer("workers").notNull().default(0),
+  hours: real("hours").notNull().default(0),
   recordedBy: integer("recorded_by").references(() => users.id),
   recordedAt: text("recorded_at").notNull(),
 });
 
 export const REJECT_REASONS = [
-  { key: "gosong", label: "Gosong" },
-  { key: "bentuk", label: "Bentuk tidak standar" },
-  { key: "kembang", label: "Kurang mengembang" },
-  { key: "rusak", label: "Jatuh / rusak" },
-  { key: "lainnya", label: "Lainnya" },
+  { key: "proving", label: "Gagal proving" },
+  { key: "oven", label: "Gagal oven" },
 ] as const;
 
 export const outputRejects = sqliteTable("output_rejects", {
@@ -149,6 +157,7 @@ export const handovers = sqliteTable("handovers", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   batchId: integer("batch_id").notNull().unique().references(() => batches.id),
   code: text("code").notNull().unique(),
+  destination: text("destination").notNull().default("Gudang FG"),
   qtySent: integer("qty_sent").notNull(),
   qtyReceived: integer("qty_received").notNull(),
   receivedBy: integer("received_by").references(() => users.id),
@@ -223,6 +232,8 @@ export const batchesRel = relations(batches, ({ one, many }) => ({
   handover: one(handovers, { fields: [batches.id], references: [handovers.batchId] }),
   exceptions: many(exceptions),
   closer: one(users, { fields: [batches.closedBy], references: [users.id] }),
+  wipInUser: one(users, { fields: [batches.wipInBy], references: [users.id] }),
+  wipOutUser: one(users, { fields: [batches.wipOutBy], references: [users.id] }),
 }));
 export const batchMaterialsRel = relations(batchMaterials, ({ one }) => ({
   batch: one(batches, { fields: [batchMaterials.batchId], references: [batches.id] }),
@@ -292,7 +303,7 @@ export const OUTBOX_STATUS = ["menunggu", "terkirim", "gagal", "dilewati"] as co
 export const outbox = sqliteTable("outbox", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   notificationId: integer("notification_id").references(() => notifications.id),
-  channel: text("channel", { enum: ["telegram", "whatsapp"] }).notNull(),
+  channel: text("channel", { enum: ["telegram", "whatsapp", "email"] }).notNull(),
   recipient: text("recipient").notNull(),
   role: text("role").notNull(),
   text: text("text").notNull(),
@@ -303,7 +314,7 @@ export const outbox = sqliteTable("outbox", {
   sentAt: text("sent_at"),
 });
 
-export const POSTING_TYPES = ["PENERIMAAN_BAHAN", "PEMAKAIAN_BAHAN", "PENERIMAAN_FG", "PENYELESAIAN_PRODUKSI"] as const;
+export const POSTING_TYPES = ["PENERIMAAN_BAHAN", "PEMAKAIAN_BAHAN", "WIP_MASUK", "WIP_KELUAR", "PENGIRIMAN_FG", "PENERIMAAN_FG", "PENYELESAIAN_PRODUKSI"] as const;
 export const POSTING_STATUS = ["menunggu", "terkirim", "gagal", "diambil"] as const;
 export const postings = sqliteTable("postings", {
   id: integer("id").primaryKey({ autoIncrement: true }),

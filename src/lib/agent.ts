@@ -7,7 +7,7 @@ import { deliverPostings } from "./posting";
 import { getSettings, num as sNum } from "./settings";
 import { buildReport } from "./report";
 import { aiReportSummary } from "./ai";
-import { goodQty, achievement, qualityYield, variance } from "./rules";
+import { goodQty, yieldPct, rejectRate, variance } from "./rules";
 import { todayISO, num, pct, pctSigned, weight, dateLong } from "./format";
 import { reservedByMaterial } from "./queries";
 
@@ -36,11 +36,19 @@ export async function runMonitor() {
       await add(notify({ event: "tertahan_timbang", roles: ["operator", "supervisor"], severity: "warn", title: `${b.code} belum selesai ditimbang`, body: `${b.product.name}: ${b.materials.filter((m) => m.actualQty != null).length}/${b.materials.length} bahan, tidak ada aktivitas lebih dari ${weighH} jam.`, link: `/timbang/${b.code}`, dedupeKey: `tertahan_timbang:${b.code}` }));
   }
 
-  // 2. Output belum diterima gudang
+  // 1b. Adonan selesai ditimbang tetapi belum masuk freezer (Gudang WIP)
+  const doughs = await db.query.batches.findMany({ where: eq(t.batches.status, "adonan"), with: { product: true, materials: true } });
+  for (const b of doughs) {
+    const last = b.materials.map((m) => m.weighedAt).filter(Boolean).sort().at(-1) ?? b.createdAt;
+    if (hoursAgo(last!) >= handH)
+      await add(notify({ event: "tertahan_wip", roles: ["gudang_wip", "supervisor"], severity: "warn", title: `Adonan ${b.code} belum masuk freezer`, body: `${b.product.name} selesai ditimbang lebih dari ${handH} jam lalu dan belum dicatat masuk Gudang WIP.`, link: "/wip", dedupeKey: `tertahan_wip:${b.code}` }));
+  }
+
+  // 2. Produk jadi belum dikirim (Packing FG)
   const waiting = await db.query.batches.findMany({ where: eq(t.batches.status, "output"), with: { product: true, output: true } });
   for (const b of waiting)
     if (b.output && hoursAgo(b.output.recordedAt) >= handH)
-      await add(notify({ event: "tertahan_serah", roles: ["gudang", "supervisor"], severity: "warn", title: `${b.code} belum diterima gudang`, body: `${b.product.name} ${num(goodQty(b.output.trays, b.product.traySize, b.output.loose))} pcs sudah menunggu lebih dari ${handH} jam.`, link: `/serah-terima/${b.code}`, dedupeKey: `tertahan_serah:${b.code}` }));
+      await add(notify({ event: "tertahan_kirim", roles: ["packing", "supervisor"], severity: "warn", title: `${b.code} belum dikirim`, body: `${b.product.name} ${num(goodQty(b.output.trays, b.product.traySize, b.output.loose))} pcs sudah menunggu dikirim lebih dari ${handH} jam.`, link: `/pengiriman/${b.code}`, dedupeKey: `tertahan_kirim:${b.code}` }));
 
   // 3. Penyimpangan belum ditangani
   const exs = await db.query.exceptions.findMany({ where: eq(t.exceptions.status, "terbuka"), with: { batch: true, material: true } });
@@ -64,10 +72,10 @@ export async function runMonitor() {
     if (!b.output) continue;
     const good = goodQty(b.output.trays, b.product.traySize, b.output.loose);
     const rej = b.rejects.reduce((a, r) => a + r.qty, 0);
-    if (achievement(good, b.target) < achMin - 1e-9)
-      await add(notify({ event: "pencapaian_rendah", roles: ["supervisor", "ppic"], severity: "warn", title: `Pencapaian ${b.code} di bawah ${pct(achMin, 0)}`, body: `${b.product.name}: ${num(good)} dari target ${num(b.target)} pcs (${pct(achievement(good, b.target))}).`, link: `/batch/${b.code}`, dedupeKey: `pencapaian:${b.code}` }));
-    if (good + rej && 1 - qualityYield(good, rej) > rejMax + 1e-9)
-      await add(notify({ event: "reject_tinggi", roles: ["supervisor"], severity: "warn", title: `Reject ${b.code} di atas ${pct(rejMax, 0)}`, body: `${b.product.name}: ${num(rej)} pcs reject (${pct(1 - qualityYield(good, rej))}).`, link: `/batch/${b.code}`, dedupeKey: `reject:${b.code}` }));
+    if (yieldPct(good, b.target) < achMin - 1e-9)
+      await add(notify({ event: "yield_rendah", roles: ["supervisor", "ppic"], severity: "warn", title: `Yield ${b.code} di bawah ${pct(achMin, 0)}`, body: `${b.product.name}: ${num(good)} pcs bagus dari standar output BOM ${num(b.target)} pcs (yield ${pct(yieldPct(good, b.target))}).`, link: `/batch/${b.code}`, dedupeKey: `yield:${b.code}` }));
+    if (good + rej && rejectRate(good, rej) > rejMax + 1e-9)
+      await add(notify({ event: "reject_tinggi", roles: ["supervisor"], severity: "warn", title: `Reject ${b.code} di atas ${pct(rejMax, 0)}`, body: `${b.product.name}: ${num(rej)} pcs reject (${pct(rejectRate(good, rej))}).`, link: `/batch/${b.code}`, dedupeKey: `reject:${b.code}` }));
   }
   return created;
 }
@@ -75,7 +83,8 @@ export async function runMonitor() {
 /** Template ringkasan tanpa AI — selalu tersedia. */
 function templateSummary(d: DailyData) {
   const lines = [
-    `${dateLong(d.date)}: ${d.batchesFinished} dari ${d.batchesPlanned} batch sudah mencatat hasil. Produk bagus ${num(d.good)} pcs dari target ${num(d.target)} pcs (${d.achievement}), reject ${num(d.reject)} pcs, kualitas ${d.yield}.`,
+    `${dateLong(d.date)}: ${d.batchesFinished} dari ${d.batchesPlanned} batch sudah mencatat hasil. Produk bagus ${num(d.good)} pcs dari standar output BOM ${num(d.target)} pcs (yield ${d.yield}), reject ${num(d.reject)} pcs (${d.rejectPct}).` +
+      (d.productivity !== "–" ? ` Produktivitas ${d.productivity}.` : ""),
   ];
   const att: string[] = [];
   if (d.openExceptions) att.push(`${d.openExceptions} penyimpangan belum disetujui supervisor.`);
@@ -101,9 +110,12 @@ async function dailyData(date: string) {
     target: r.totTarget,
     good: r.totGood,
     reject: r.totReject,
-    achievement: r.totTarget ? pct(achievement(r.totGood, r.totTarget)) : "–",
-    yield: r.totGood + r.totReject ? pct(qualityYield(r.totGood, r.totReject)) : "–",
-    perProduct: r.byProduct.map((p) => ({ produk: p.name, batch: p.batches, target: p.target, bagus: p.good, reject: p.reject })),
+    yield: r.totTarget ? pct(yieldPct(r.totGood, r.totTarget)) : "–",
+    rejectPct: r.totGood + r.totReject ? pct(rejectRate(r.totGood, r.totReject)) : "–",
+    manHours: Math.round(r.totManHours * 10) / 10,
+    productivity: r.totManHours > 0 ? `${num(r.goodWithLabor / r.totManHours, 1)} pcs/orang-jam` : "–",
+    perProduct: r.byProduct.map((p) => ({ produk: p.name, batch: p.batches, standar_output: p.target, bagus: p.good, reject: p.reject, orang_jam: Math.round(p.manHours * 10) / 10 })),
+    pengiriman: r.byDestination.map((d) => ({ tujuan: d.destination, kiriman: d.shipments, pcs: d.qty })),
     waste: r.waste.map((w) => ({ penyebab: w.label, pcs: w.qty })),
     topWaste: r.waste[0] ? `${r.waste[0].label.toLowerCase()} (${r.waste[0].qty} pcs)` : null,
     topVariance: top && Math.abs(variance(top.actual, top.std)) > 0.01 ? `${top.name.toLowerCase()} ${pctSigned(variance(top.actual, top.std))}` : null,

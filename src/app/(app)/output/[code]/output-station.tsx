@@ -3,23 +3,25 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState, useTransition } from "react";
-import { CheckCircle2, ChevronLeft, LayoutGrid, Loader2, Shapes, Sparkles, XCircle } from "lucide-react";
+import { CheckCircle2, ChevronLeft, Clock, LayoutGrid, Loader2, Shapes, Sparkles, Users, XCircle } from "lucide-react";
 import { CameraCount } from "./camera-count";
 import { saveOutput } from "@/app/actions/produksi";
-import { achievement, goodQty, qualityYield } from "@/lib/rules";
+import { goodQty, productivity, rejectRate, yieldPct } from "@/lib/rules";
 import { num, pct } from "@/lib/format";
 import { Modal, NumberPadModal, Stepper } from "@/components/controls";
 import { Card, Progress, btn, cx } from "@/components/ui";
 import { useToast } from "@/components/toast";
 
 type Batch = { code: string; target: number; product: string; image: string | null; traySize: number };
-type Pad = { title: string; value: number; set: (n: number) => void } | null;
+type Pad = { title: string; value: number; set: (n: number) => void; decimal?: boolean; unit?: string } | null;
 
-export function OutputStation({ batch, reasons, canHandover, initialDone, aiReady }: { batch: Batch; reasons: { key: string; label: string }[]; canHandover: boolean; initialDone?: { good: number; reject: number }; aiReady: boolean }) {
+export function OutputStation({ batch, reasons, canShip, initialDone, aiReady, yieldMin }: { batch: Batch; reasons: { key: string; label: string }[]; canShip: boolean; initialDone?: { good: number; reject: number }; aiReady: boolean; yieldMin: number }) {
   const [camera, setCamera] = useState<{ good: number; reject: number; confidence: string } | null>(null);
   const [trays, setTrays] = useState(0);
   const [loose, setLoose] = useState(0);
   const [rej, setRej] = useState<Record<string, number>>(Object.fromEntries(reasons.map((r) => [r.key, 0])));
+  const [workers, setWorkers] = useState(0);
+  const [hours, setHours] = useState(0);
   const [pad, setPad] = useState<Pad>(null);
   const [confirm, setConfirm] = useState(false);
   const [done, setDone] = useState<{ good: number; reject: number } | null>(initialDone ?? null);
@@ -28,12 +30,16 @@ export function OutputStation({ batch, reasons, canHandover, initialDone, aiRead
 
   const good = goodQty(trays, batch.traySize, loose);
   const reject = Object.values(rej).reduce((a, b) => a + b, 0);
-  const ach = achievement(good, batch.target);
-  const yld = qualityYield(good, reject);
+  const yld = yieldPct(good, batch.target);
+  const rejPct = rejectRate(good, reject);
+  const prod = productivity(good, workers, hours);
+  const laborOk = workers >= 1 && hours > 0;
+  const canSave = good + reject > 0 && laborOk;
+  const hrs = (h: number) => num(h, Number.isInteger(h) ? 0 : 1);
 
   const save = () =>
     start(async () => {
-      const r = await saveOutput({ batchCode: batch.code, trays, loose, rejects: rej, camera });
+      const r = await saveOutput({ batchCode: batch.code, trays, loose, rejects: rej, workers, hours, camera });
       if (!r.ok) return toast(r.error, "bad");
       setConfirm(false);
       setDone(r.data!);
@@ -49,14 +55,14 @@ export function OutputStation({ batch, reasons, canHandover, initialDone, aiRead
         <p className="text-lg text-ink-2">
           {batch.product} <span className="font-mono font-semibold">{batch.code}</span>: <b className="text-good">{num(done.good)} pcs bagus</b>, {num(done.reject)} reject.
         </p>
-        <p className="text-muted">Langkah berikutnya: gudang menghitung dan menerima produk jadi.</p>
+        <p className="text-muted">Langkah berikutnya: Packing FG mengirim produk jadi ke Gudang FG atau outlet.</p>
         <div className="flex w-full flex-col gap-2 sm:flex-row">
-          {canHandover && (
-            <Link href={`/serah-terima/${batch.code}`} className={btn("primary", "xl")}>
-              Serah terima sekarang
+          {canShip && (
+            <Link href={`/pengiriman/${batch.code}`} className={btn("primary", "xl")}>
+              Kirim produk jadi
             </Link>
           )}
-          <Link href="/output" className={btn(canHandover ? "secondary" : "primary", "xl")}>
+          <Link href="/output" className={btn(canShip ? "secondary" : "primary", "xl")}>
             Catat batch lain
           </Link>
         </div>
@@ -78,7 +84,7 @@ export function OutputStation({ batch, reasons, canHandover, initialDone, aiRead
           <div className="min-w-0 leading-tight">
             <h1 className="truncate text-xl font-extrabold">Hasil produksi · {batch.product}</h1>
             <p className="truncate text-sm text-muted">
-              <span className="font-mono font-semibold text-ink-2">{batch.code}</span> · Target <b className="text-ink">{num(batch.target)} pcs</b>
+              <span className="font-mono font-semibold text-ink-2">{batch.code}</span> · Standar output <b className="text-ink">{num(batch.target)} pcs</b>
             </p>
           </div>
         </div>
@@ -86,7 +92,7 @@ export function OutputStation({ batch, reasons, canHandover, initialDone, aiRead
 
       <div className="grid gap-4 md:grid-cols-2 station:min-h-0 station:flex-1 station:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.9fr)]">
         {/* kolom 1: produk bagus + kamera */}
-        <Card className="flex flex-col gap-1 p-4 station:min-h-0 station:overflow-y-auto">
+        <Card className="@container flex flex-col gap-1 p-4 station:min-h-0 station:overflow-y-auto">
           <h2 className="flex items-center gap-2 text-lg font-bold">
             <CheckCircle2 className="size-6 text-good" /> Produk bagus
           </h2>
@@ -117,8 +123,8 @@ export function OutputStation({ batch, reasons, canHandover, initialDone, aiRead
           </div>
         </Card>
 
-        {/* kolom 2: reject per penyebab */}
-        <Card className="flex flex-col p-4 station:min-h-0 station:overflow-y-auto">
+        {/* kolom 2: reject per penyebab + jam kerja */}
+        <Card className="@container flex flex-col p-4 station:min-h-0 station:overflow-y-auto">
           <h2 className="flex items-center gap-2 text-lg font-bold">
             <XCircle className="size-6 text-bad" /> Produk reject
             <span className="text-sm font-normal text-muted">(tidak lolos QC)</span>
@@ -134,6 +140,17 @@ export function OutputStation({ batch, reasons, canHandover, initialDone, aiRead
               />
             </Row>
           ))}
+          <h2 className="mt-4 flex items-center gap-2 text-lg font-bold">
+            <Clock className="size-6 text-info" /> Jam kerja
+            <span className="text-sm font-normal text-muted">(untuk produktivitas)</span>
+          </h2>
+          <Row icon={<Users className="size-5" />} title="Jumlah orang" dense>
+            <Stepper size="md" label="jumlah orang" value={workers} max={200} onChange={setWorkers} onTapValue={() => setPad({ title: "Jumlah orang yang bekerja", value: workers, set: (n) => setWorkers(Math.min(200, Math.floor(n))), unit: "orang" })} />
+          </Row>
+          <Row icon={<Clock className="size-5" />} title="Lama kerja" sub="jam, naik 0,5" dense>
+            <Stepper size="md" label="lama kerja (jam)" value={hours} step={0.5} max={24} format={hrs} onChange={setHours} onTapValue={() => setPad({ title: "Lama kerja (jam)", value: hours, set: (n) => setHours(Math.min(24, Math.round(n * 100) / 100)), decimal: true, unit: "jam" })} />
+          </Row>
+          {!laborOk && <p className="mt-1 text-sm font-medium text-warn">Isi jumlah orang dan lama kerja sebelum menyimpan.</p>}
         </Card>
 
         {/* kolom 3: ringkasan + simpan */}
@@ -150,25 +167,29 @@ export function OutputStation({ batch, reasons, canHandover, initialDone, aiRead
           </div>
           <div className="flex flex-col gap-1.5">
             <div className="flex justify-between text-sm">
-              <span className="font-semibold">Dibanding target</span>
-              <span className={cx("font-bold tnum", ach >= 0.95 ? "text-good" : "text-warn")}>{pct(ach)}</span>
+              <span className="font-semibold" title="Produk bagus ÷ standar output BOM">Yield (vs standar BOM)</span>
+              <span className={cx("font-bold tnum", yld >= yieldMin - 1e-9 ? "text-good" : "text-warn")}>{pct(yld)}</span>
             </div>
-            <Progress value={good} max={batch.target} tone={ach >= 0.95 ? "good" : "brand"} />
+            <Progress value={good} max={batch.target} tone={yld >= yieldMin - 1e-9 ? "good" : "brand"} />
             <p className="text-sm text-muted tnum">
-              {good >= batch.target ? `Target ${num(batch.target)} pcs tercapai` : `Kurang ${num(batch.target - good)} pcs dari target ${num(batch.target)}`}
+              {good >= batch.target ? `Standar output ${num(batch.target)} pcs tercapai` : `Kurang ${num(batch.target - good)} pcs dari standar ${num(batch.target)}`}
             </p>
           </div>
           <dl className="grid grid-cols-2 gap-3 rounded-xl bg-sunken p-3">
             <div>
               <dt className="text-sm text-muted">Reject</dt>
-              <dd className="text-2xl font-extrabold text-bad tnum">{num(reject)}</dd>
+              <dd className="text-2xl font-extrabold text-bad tnum">
+                {num(reject)} <span className="text-sm font-semibold text-muted">{good + reject ? pct(rejPct) : ""}</span>
+              </dd>
             </div>
             <div>
-              <dt className="text-sm text-muted" title="Bagus dibanding semua yang dibuat">Kualitas (yield)</dt>
-              <dd className="text-2xl font-extrabold tnum">{good + reject ? pct(yld) : "–"}</dd>
+              <dt className="text-sm text-muted" title="Produk bagus ÷ (orang × jam)">Produktivitas</dt>
+              <dd className="text-2xl font-extrabold tnum">
+                {prod != null ? num(prod, 1) : "–"} <span className="text-sm font-semibold text-muted">pcs/orang-jam</span>
+              </dd>
             </div>
           </dl>
-          <button type="button" disabled={good + reject === 0} onClick={() => setConfirm(true)} className={btn("primary", "xl", "max-md:hidden station:mt-auto")}>
+          <button type="button" disabled={!canSave} onClick={() => setConfirm(true)} className={btn("primary", "xl", "max-md:hidden station:mt-auto")}>
             Simpan hasil produksi
           </button>
         </Card>
@@ -181,13 +202,13 @@ export function OutputStation({ batch, reasons, canHandover, initialDone, aiRead
               <span className="text-good">{num(good)}</span> · <span className="text-bad">{num(reject)}</span>
             </p>
           </div>
-          <button type="button" disabled={good + reject === 0} onClick={() => setConfirm(true)} className={btn("primary", "lg", "flex-1")}>
+          <button type="button" disabled={!canSave} onClick={() => setConfirm(true)} className={btn("primary", "lg", "flex-1")}>
             Simpan hasil
           </button>
         </div>
       </div>
 
-      <NumberPadModal open={!!pad} onClose={() => setPad(null)} title={pad?.title ?? ""} initial={pad?.value ?? 0} decimal={false} onSubmit={(n) => pad?.set(Math.max(0, Math.floor(n)))} />
+      <NumberPadModal open={!!pad} onClose={() => setPad(null)} title={pad?.title ?? ""} initial={pad?.value ?? 0} decimal={!!pad?.decimal} unit={pad?.unit} onSubmit={(n) => pad?.set(Math.max(0, pad.decimal ? n : Math.floor(n)))} />
 
       <Modal
         open={confirm}
@@ -211,6 +232,7 @@ export function OutputStation({ batch, reasons, canHandover, initialDone, aiRead
           {reasons.filter((r) => rej[r.key] > 0).map((r) => (
             <li key={r.key} className="flex justify-between py-2 text-bad"><span>Reject: {r.label}</span><b className="tnum">{rej[r.key]} pcs</b></li>
           ))}
+          <li className="flex justify-between py-2"><span>Jam kerja</span><b className="tnum">{workers} orang × {hrs(hours)} jam</b></li>
         </ul>
         <p className="mt-3 text-sm text-muted">Setelah disimpan, angka tidak bisa diubah dari layar ini.</p>
       </Modal>
@@ -222,7 +244,7 @@ function Row({ icon, title, sub, children, dense }: { icon?: React.ReactNode; ti
   return (
     <div className={cx("flex flex-wrap items-center justify-between gap-3 border-b border-line last:border-b-0", dense ? "py-2" : "py-3")}>
       <div className="flex items-center gap-3">
-        {icon && <span className="flex size-11 items-center justify-center rounded-xl bg-sunken text-ink-2">{icon}</span>}
+        {icon && <span className="hidden size-11 shrink-0 items-center justify-center rounded-xl bg-sunken text-ink-2 @[25rem]:flex">{icon}</span>}
         <div>
           <p className={cx("font-semibold leading-tight", dense ? "text-[16px]" : "text-lg")}>{title}</p>
           {sub && <p className="text-sm text-muted">{sub}</p>}

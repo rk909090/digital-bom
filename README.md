@@ -1,6 +1,6 @@
-# Smart Bakery Production — Digital BOM (Fase 1)
+# Smart Bakery Production — Digital BOM
 
-Aplikasi web untuk produksi bakery: rencana → timbang bahan → hasil produksi → serah terima → verifikasi → laporan.
+Aplikasi web untuk produksi bakery: rencana → permintaan bahan (Gudang RM) → timbang bahan → adonan masuk/keluar freezer (Gudang WIP) → hasil produksi + jam kerja → pengiriman produk jadi (Packing FG) → verifikasi → laporan & ekspor Excel.
 Spesifikasi dan semua asumsi: [docs/FASE-0-SPESIFIKASI.md](docs/FASE-0-SPESIFIKASI.md).
 
 ## Menjalankan
@@ -20,9 +20,11 @@ Set `DEMO_MODE=false` agar PIN tidak ditampilkan di halaman masuk.
 |---|---|---|
 | Admin | Administrator (semua menu) | 0000 |
 | Rina | PPIC | 1111 |
-| Budi, Sari | Operator | 2222, 3333 |
-| Dewi | Gudang | 4444 |
+| Budi, Sari | Operator Produksi | 2222, 3333 |
+| Dewi | Gudang RM | 4444 |
 | Hendra | Supervisor | 5555 |
+| Wawan | Gudang WIP (freezer) | 6666 |
+| Putri | Packing FG | 7777 |
 
 Admin bisa **Reset data demo** di menu *Resep & Bahan*.
 
@@ -31,13 +33,14 @@ Admin bisa **Reset data demo** di menu *Resep & Bahan*.
 | Menu | Peran | Fungsi |
 |---|---|---|
 | Rencana | PPIC | Pilih produk + jumlah → batch & kebutuhan bahan otomatis dari BOM, permintaan bahan ke gudang |
-| Gudang | Gudang | Siapkan/serahkan permintaan bahan, barang masuk, daftar perlu dibeli |
-| Timbang Bahan | Operator | Panduan per bahan dengan gambar, zona target hijau, timbangan (Web Serial) atau ketik angka |
-| Hasil Produksi | Operator | Tray penuh × isi + satuan, reject per penyebab, pencapaian & yield |
-| Serah Terima | Gudang | Hitung & konfirmasi penerimaan produk jadi |
-| Verifikasi | Supervisor | Setujui/investigasi penyimpangan, tutup batch |
-| Laporan | PPIC/Supervisor | Output, reject, bahan resep vs aktual, unduh CSV |
-| Resep & Bahan | PPIC | Editor BOM berversi, master bahan |
+| Gudang RM | Gudang RM | Siapkan/serahkan permintaan bahan, barang masuk, daftar perlu dibeli |
+| Timbang Bahan | Operator Produksi | Panduan per bahan dengan gambar, zona toleransi (default 2%), timbangan (Web Serial), keypad, atau suara |
+| Gudang WIP | Gudang WIP | Adonan yang selesai ditimbang dicatat masuk freezer (kg), lalu dikeluarkan untuk produksi |
+| Hasil Produksi | Operator Produksi | Tray penuh × isi + satuan, reject (gagal proving / gagal oven), jam kerja (orang × jam), yield & produktivitas |
+| Pengiriman FG | Packing FG | Kirim produk bagus ke Gudang FG atau outlet; disetujui otomatis oleh sistem |
+| Verifikasi | Supervisor | Setujui/investigasi penyimpangan (>2%), tutup batch |
+| Laporan | PPIC/Supervisor | Yield (bagus ÷ standar output BOM), reject %, produktivitas (pcs/orang-jam), pengiriman per tujuan, unduh Excel/CSV |
+| Resep & Bahan | PPIC | Editor BOM berversi per SKU, impor/ekspor resep via Excel, master bahan |
 
 ## Fase 2: Digital Agent, notifikasi & integrasi ERP
 
@@ -80,6 +83,19 @@ Spesifikasi & hasil uji: [docs/FASE-3-SPESIFIKASI.md](docs/FASE-3-SPESIFIKASI.md
 Tes pengurai suara: `npm run test:voice`.
 Skrip `dev`/`start` memakai `node --use-system-ca` agar koneksi HTTPS ke layanan AI tetap jalan di jaringan/antivirus yang memeriksa HTTPS.
 Mikrofon & kamera browser butuh HTTPS di produksi (localhost dikecualikan).
+
+## Fase 4: Penyesuaian jawaban klien
+
+Spesifikasi, keputusan & hasil uji: [docs/FASE-4-SPESIFIKASI.md](docs/FASE-4-SPESIFIKASI.md). Rekomendasi timbangan: [docs/SPESIFIKASI-TIMBANGAN.md](docs/SPESIFIKASI-TIMBANGAN.md).
+
+| Fitur | Di mana |
+|---|---|
+| Ekspor Excel (.xlsx, 9 sheet) untuk ERP | *Laporan* → Unduh Excel, *Integrasi ERP* → Ekspor spreadsheet, `GET /laporan/excel?p=7` (p = hari, 7, 30) |
+| Impor resep per SKU dari Excel (template, pratinjau, versi baru) | *Resep & Bahan* → Impor Excel, `GET /master/template-resep` |
+| Notifikasi email lewat Resend (API key, pengirim, alamat per peran, tes kirim) | *Pengaturan* → Notifikasi Email |
+| Tujuan pengiriman FG (Gudang FG, outlet) | *Pengaturan* → Tujuan pengiriman |
+
+Email: isi **API key Resend** dan **alamat pengirim** (domain terverifikasi di Resend) di Pengaturan, lalu aktifkan. `RESEND_API_URL` hanya untuk pengujian (default `https://api.resend.com/emails`).
 
 ## Deploy (Hostinger, Node.js)
 

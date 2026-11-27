@@ -58,5 +58,20 @@ export const MIGRATIONS: EmbeddedMigration[] = [
     "sql": [
       "ALTER TABLE `outputs` ADD `source` text DEFAULT 'manual' NOT NULL;"
     ]
+  },
+  {
+    "tag": "0003_youthful_thunderbird",
+    "when": 1795761683802,
+    "hash": "53c791f5804cd923f229789c48e1efd17efc145fc3afe2ee314a77236616a287",
+    "sql": [
+      "ALTER TABLE `batches` ADD `dough_kg` real;",
+      "\nALTER TABLE `batches` ADD `wip_in_at` text;",
+      "\nALTER TABLE `batches` ADD `wip_in_by` integer REFERENCES users(id);",
+      "\nALTER TABLE `batches` ADD `wip_out_at` text;",
+      "\nALTER TABLE `batches` ADD `wip_out_by` integer REFERENCES users(id);",
+      "\nALTER TABLE `handovers` ADD `destination` text DEFAULT 'Gudang FG' NOT NULL;",
+      "\nALTER TABLE `outputs` ADD `workers` integer DEFAULT 0 NOT NULL;",
+      "\nALTER TABLE `outputs` ADD `hours` real DEFAULT 0 NOT NULL;"
+    ]
   }
 ];

@@ -8,6 +8,7 @@ import { dateTime, num, weight } from "@/lib/format";
 import { Card, PageHeader, Pill, Thumb } from "@/components/ui";
 import { MasterTabs } from "./master-tabs";
 import { NewProductButton, ResetDemoButton } from "./master-actions";
+import { RecipeImportButton } from "./recipe-import";
 
 export const metadata: Metadata = { title: "Resep & Bahan" };
 
@@ -25,6 +26,7 @@ export default async function MasterPage() {
         actions={
           <>
             <NewProductButton />
+            <RecipeImportButton />
             {user.role === "admin" && <ResetDemoButton />}
           </>
         }

@@ -43,7 +43,7 @@ export function parseNum(s: string): number {
 }
 
 /** Tombol − angka + yang besar. Angka bisa diketuk untuk diketik. */
-export function Stepper({ value, onChange, step = 1, min = 0, label, onTapValue, size = "lg" }: { value: number; onChange: (v: number) => void; step?: number; min?: number; label: string; onTapValue?: () => void; size?: "md" | "lg" }) {
+export function Stepper({ value, onChange, step = 1, min = 0, max, label, onTapValue, size = "lg", format }: { value: number; onChange: (v: number) => void; step?: number; min?: number; max?: number; label: string; onTapValue?: () => void; size?: "md" | "lg"; format?: (v: number) => string }) {
   const b = size === "lg" ? "size-14" : "size-11";
   return (
     <div className="flex items-center gap-2">
@@ -51,9 +51,9 @@ export function Stepper({ value, onChange, step = 1, min = 0, label, onTapValue,
         <Minus className="size-6" />
       </button>
       <button type="button" onClick={onTapValue} aria-label={`${label}: ${value}. Ketuk untuk mengetik`} className={cx("min-w-[4.5rem] rounded-xl px-2 text-center font-extrabold tnum", size === "lg" ? "text-[32px] leading-[56px]" : "text-2xl leading-[44px]", onTapValue && "hover:bg-sunken")}>
-        {value}
+        {format ? format(value) : value}
       </button>
-      <button type="button" aria-label={`Tambah ${label}`} onClick={() => onChange(value + step)} className={cx(b, "flex items-center justify-center rounded-full bg-ink text-white active:opacity-80")}>
+      <button type="button" aria-label={`Tambah ${label}`} onClick={() => onChange(max != null ? Math.min(max, value + step) : value + step)} disabled={max != null && value >= max} className={cx(b, "flex items-center justify-center rounded-full bg-ink text-white active:opacity-80 disabled:opacity-35")}>
         <Plus className="size-6" />
       </button>
     </div>

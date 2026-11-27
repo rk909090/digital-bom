@@ -6,6 +6,7 @@ import { db, t } from "@/db";
 import { actionUser, ActionError, safe } from "@/lib/auth";
 import { logActivity, nowISO } from "@/lib/log";
 import { seedDatabase } from "@/db/seed-data";
+import { applyRecipeImport, parseRecipeFile, planRecipeImport } from "@/lib/excel";
 
 type LineIn = { materialId: number; qty: number; tolerancePct: number };
 
@@ -86,5 +87,40 @@ export async function resetDemo() {
     await seedDatabase(db as unknown as Parameters<typeof seedDatabase>[0]);
     revalidatePath("/", "layout");
     return { ok: true };
+  });
+}
+
+// ---------- Impor resep dari Excel ----------
+
+const MAX_XLSX = 1024 * 1024; // batas body server action bawaan Next.js (1 MB)
+
+async function readRecipeForm(form: FormData) {
+  const file = form.get("file");
+  if (!(file instanceof File) || !file.size) throw new ActionError("Pilih file Excel (.xlsx) terlebih dahulu.");
+  if (file.size > MAX_XLSX) throw new ActionError("File terlalu besar (maks. 1 MB).");
+  if (!/\.xlsx$/i.test(file.name)) throw new ActionError("Format file harus .xlsx (Excel).");
+  return parseRecipeFile(await file.arrayBuffer());
+}
+
+/** Pratinjau impor: validasi + perbandingan dengan resep saat ini. Tidak menyimpan apa pun. */
+export async function previewRecipeImport(form: FormData) {
+  return safe(async () => {
+    await actionUser("master");
+    const { rows, errors } = await readRecipeForm(form);
+    if (errors.length) return { errors, plan: null };
+    return { errors: [] as string[], plan: await planRecipeImport(rows) };
+  });
+}
+
+/** Simpan impor (file divalidasi ulang di server). */
+export async function applyRecipeImportAction(form: FormData) {
+  return safe(async () => {
+    const user = await actionUser("master");
+    const { rows, errors } = await readRecipeForm(form);
+    if (errors.length) throw new ActionError(errors[0]);
+    const res = await applyRecipeImport(rows, user.id, nowISO());
+    await logActivity(db, user.id, "impor_resep", undefined, `${res.versionsCreated} versi resep, ${res.productsCreated} produk baru, ${res.materialsCreated} bahan baru`);
+    revalidatePath("/", "layout");
+    return res;
   });
 }

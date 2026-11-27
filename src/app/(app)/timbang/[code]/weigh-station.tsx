@@ -198,7 +198,7 @@ export function WeighStation({ batch, lines: serverLines, reasons }: { batch: Ba
         </span>
         <h1 className="text-3xl font-extrabold">Semua bahan sudah ditimbang</h1>
         <p className="text-lg text-ink-2">
-          Batch <b className="font-mono">{batch.code}</b> ({batch.product}) siap diproduksi.
+          Adonan batch <b className="font-mono">{batch.code}</b> ({batch.product}) siap diserahkan ke Gudang WIP untuk masuk freezer.
         </p>
         <Card className="w-full divide-y divide-line text-left">
           {lines.map((l) => (

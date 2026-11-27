@@ -7,10 +7,14 @@ import { db, t } from "@/db";
 import { actionUser, ActionError, safe } from "@/lib/auth";
 import { logActivity } from "@/lib/log";
 import { DEFAULTS, SECRET_KEYS, getSettings, setSettings, type SettingKey } from "@/lib/settings";
-import { sendTelegram, sendWhatsApp } from "@/lib/channels";
+import { sendEmail, sendTelegram, sendWhatsApp } from "@/lib/channels";
 import { deliverPostings, sign } from "@/lib/posting";
 import { generateDailyReport, runAgent } from "@/lib/agent";
 import { aiEnabled } from "@/lib/ai";
+
+const EMAIL = /^[^\s@<>,]+@[^\s@<>,]+\.[^\s@<>,]+$/;
+/** "nama@domain.com" atau "Nama Pengirim <nama@domain.com>" */
+const isFrom = (v: string) => EMAIL.test(v) || /^[^<>]+<[^\s@<>,]+@[^\s@<>,]+\.[^\s@<>,]+>$/.test(v);
 
 export async function saveSettings(values: Partial<Record<SettingKey, string>>) {
   return safe(async () => {
@@ -29,6 +33,18 @@ export async function saveSettings(values: Partial<Record<SettingKey, string>>) 
       }
       if (key === "erp.webhook.url" || key === "whatsapp.url") {
         if (v && !/^https?:\/\/\S+$/.test(v.trim())) throw new ActionError("Alamat URL harus diawali http:// atau https://");
+      }
+      if (key === "email.from" && v.trim() && !isFrom(v.trim())) throw new ActionError("Alamat pengirim email tidak valid. Contoh: Smart Bakery <notifikasi@domainanda.com>");
+      if (key.startsWith("email.to.")) {
+        const bad = v.split(",").map((x) => x.trim()).filter(Boolean).find((x) => !EMAIL.test(x));
+        if (bad) throw new ActionError(`Alamat email tidak valid: ${bad}`);
+      }
+      if (key === "fg.destinations") {
+        const list = v.split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
+        if (!list.length) throw new ActionError("Isi minimal satu tujuan pengiriman.");
+        if (list.length > 30 || list.some((x) => x.length > 60)) throw new ActionError("Maksimal 30 tujuan, masing-masing maksimal 60 karakter.");
+        clean[key] = [...new Set(list)].join("\n");
+        continue;
       }
       clean[key] = v.trim().slice(0, 500);
     }
@@ -50,7 +66,7 @@ export async function regenerate(key: "erp.webhook.secret" | "erp.api.key") {
   });
 }
 
-export async function testChannel(channel: "telegram" | "whatsapp", role: string) {
+export async function testChannel(channel: "telegram" | "whatsapp" | "email", role: string) {
   return safe(async () => {
     await actionUser("pengaturan");
     const s = await getSettings();
@@ -60,6 +76,10 @@ export async function testChannel(channel: "telegram" | "whatsapp", role: string
         const chat = s[`telegram.chat.${role}` as SettingKey];
         if (!s["telegram.token"] || !chat) throw new ActionError("Isi token bot dan Chat ID peran ini, lalu simpan dulu.");
         await sendTelegram(s["telegram.token"], chat, text);
+      } else if (channel === "email") {
+        const to = (s[`email.to.${role}` as SettingKey] ?? "").split(",").map((x) => x.trim()).filter(Boolean)[0];
+        if (!s["email.resend.key"] || !s["email.from"] || !to) throw new ActionError("Isi API key Resend, alamat pengirim, dan email peran ini, lalu simpan dulu.");
+        await sendEmail(s["email.resend.key"], s["email.from"], to, `✅ Tes notifikasi email\n${text}`);
       } else {
         const phone = s[`whatsapp.phone.${role}` as SettingKey];
         if (!s["whatsapp.url"] || !s["whatsapp.token"] || !phone) throw new ActionError("Isi URL gateway, token, dan nomor peran ini, lalu simpan dulu.");

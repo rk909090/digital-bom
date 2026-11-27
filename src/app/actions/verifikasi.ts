@@ -33,7 +33,7 @@ export async function closeBatch(code: string) {
     if (b.status === "ditutup") throw new ActionError("Batch sudah ditutup.");
     if (b.materials.some((m) => m.actualQty == null)) throw new ActionError("Masih ada bahan yang belum ditimbang.");
     if (!b.output) throw new ActionError("Hasil produksi belum dicatat.");
-    if (!b.handover) throw new ActionError("Serah terima ke gudang belum dikonfirmasi.");
+    if (!b.handover) throw new ActionError("Produk jadi batch ini belum dikirim (Pengiriman FG).");
     const open = b.exceptions.filter((e) => e.status !== "disetujui").length;
     if (open) throw new ActionError(`Masih ada ${open} penyimpangan yang belum disetujui.`);
     await db.update(t.batches).set({ status: "ditutup", closedAt: nowISO(), closedBy: user.id }).where(eq(t.batches.id, b.id));

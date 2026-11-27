@@ -30,7 +30,7 @@ export default async function VerifyPage() {
       <section className="flex flex-col gap-3">
         <SectionTitle>Penyimpangan perlu diperiksa ({terbuka.length})</SectionTitle>
         {terbuka.length === 0 ? (
-          <Empty title="Tidak ada penyimpangan baru" icon={<ShieldCheck />}>Sistem akan memberi tahu jika ada berat bahan atau jumlah serah terima yang tidak sesuai.</Empty>
+          <Empty title="Tidak ada penyimpangan baru" icon={<ShieldCheck />}>Sistem akan memberi tahu jika ada berat bahan yang di luar toleransi.</Empty>
         ) : (
           <div className="grid gap-4 xl:grid-cols-2">{terbuka.map((e) => <ExceptionCard key={e.id} e={toView(e)} />)}</div>
         )}
@@ -46,11 +46,11 @@ export default async function VerifyPage() {
       <section className="flex flex-col gap-3">
         <SectionTitle>Batch siap ditutup ({ready.length})</SectionTitle>
         {ready.length === 0 ? (
-          <p className="text-muted">Belum ada batch yang sudah diterima gudang.</p>
+          <p className="text-muted">Belum ada batch yang produk jadinya sudah dikirim.</p>
         ) : (
           <div className="grid gap-4 xl:grid-cols-2">
             {ready.map((b) => (
-              <CloseBatchCard key={b.id} b={{ code: b.code, product: b.product.name, image: b.product.image, target: b.target, good: b.good ?? 0, reject: b.reject ?? 0, received: b.received ?? 0, openEx: b.openEx }} />
+              <CloseBatchCard key={b.id} b={{ code: b.code, product: b.product.name, image: b.product.image, target: b.target, good: b.good ?? 0, reject: b.reject ?? 0, received: b.received ?? 0, destination: b.destination, openEx: b.openEx }} />
             ))}
           </div>
         )}

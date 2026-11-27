@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { ArrowRight, BarChart3, ClipboardPlus, Handshake, PackageCheck, Scale, ShieldCheck, Warehouse } from "lucide-react";
+import { ArrowRight, BarChart3, ClipboardPlus, PackageCheck, Scale, ShieldCheck, Snowflake, Truck, Warehouse } from "lucide-react";
 import { requireUser } from "@/lib/auth";
 import { can } from "@/lib/access";
 import { listBatches, navCounts } from "@/lib/queries";
@@ -16,16 +16,17 @@ export default async function Home({ searchParams }: { searchParams: Promise<Rec
   const user = await requireUser();
   const sp = await searchParams;
   const [n, today] = await Promise.all([navCounts(), listBatches({ from: todayISO(), to: todayISO() })]);
-  const active = (await listBatches({ statuses: ["menunggu", "ditimbang", "produksi", "output", "diterima"] })).filter((b) => b.date !== todayISO());
+  const active = (await listBatches({ statuses: ["menunggu", "ditimbang", "adonan", "wip", "produksi", "output", "diterima"] })).filter((b) => b.date !== todayISO());
 
   const tasks: Task[] = [];
   if (can(user.role, "timbang")) tasks.push({ href: "/timbang", title: "Timbang bahan", count: n.timbang, desc: "batch menunggu ditimbang", empty: "Semua bahan sudah ditimbang", icon: Scale });
-  if (can(user.role, "output")) tasks.push({ href: "/output", title: "Catat hasil produksi", count: n.output, desc: "batch sedang diproduksi", empty: "Belum ada batch yang selesai diproduksi", icon: PackageCheck });
-  if (can(user.role, "gudang")) tasks.push({ href: "/gudang", title: "Siapkan bahan", count: n.gudang, desc: "permintaan bahan dari produksi", empty: "Tidak ada permintaan bahan", icon: Warehouse });
-  if (can(user.role, "serahTerima")) tasks.push({ href: "/serah-terima", title: "Terima hasil produksi", count: n.serahTerima, desc: "batch siap diserahkan ke gudang", empty: "Tidak ada yang perlu diterima", icon: Handshake });
+  if (can(user.role, "wip")) tasks.push({ href: "/wip", title: "Gudang WIP (freezer)", count: n.wip, desc: `adonan · ${n.wipReady} siap masuk, ${n.wip - n.wipReady} di freezer`, empty: "Tidak ada adonan di Gudang WIP", icon: Snowflake });
+  if (can(user.role, "output")) tasks.push({ href: "/output", title: "Catat hasil produksi", count: n.output, desc: "batch keluar freezer, siap dicatat hasilnya", empty: "Belum ada batch yang keluar freezer", icon: PackageCheck });
+  if (can(user.role, "gudang")) tasks.push({ href: "/gudang", title: "Siapkan bahan (Gudang RM)", count: n.gudang, desc: "permintaan bahan dari produksi", empty: "Tidak ada permintaan bahan", icon: Warehouse });
+  if (can(user.role, "pengiriman")) tasks.push({ href: "/pengiriman", title: "Kirim produk jadi", count: n.pengiriman, desc: "batch siap dikirim ke gudang/outlet", empty: "Tidak ada yang perlu dikirim", icon: Truck });
   if (can(user.role, "verifikasi")) tasks.push({ href: "/verifikasi", title: "Periksa & tutup batch", count: n.verifikasi + n.tutup, desc: `${n.verifikasi} penyimpangan · ${n.tutup} batch siap ditutup`, empty: "Tidak ada yang perlu diperiksa", icon: ShieldCheck, alert: n.verifikasi > 0 });
   if (can(user.role, "rencana")) tasks.push({ href: "/rencana/baru", title: "Buat rencana produksi", desc: "Hitung bahan otomatis dari resep", empty: "", icon: ClipboardPlus });
-  if (can(user.role, "laporan")) tasks.push({ href: "/laporan", title: "Lihat laporan", desc: "Output, waste, dan yield", empty: "", icon: BarChart3 });
+  if (can(user.role, "laporan")) tasks.push({ href: "/laporan", title: "Lihat laporan", desc: "Yield, reject, produktivitas & Excel", empty: "", icon: BarChart3 });
 
   return (
     <>

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import { desc, sql } from "drizzle-orm";
-import { Download, Settings } from "lucide-react";
+import { Download, FileSpreadsheet, Settings } from "lucide-react";
 import { db, t } from "@/db";
 import { requireUser } from "@/lib/auth";
 import { getSettings } from "@/lib/settings";
@@ -43,6 +43,22 @@ export default async function IntegrationPage() {
         Webhook ERP: {webhookOn ? <Pill tone="good">Aktif</Pill> : <Pill tone="warn">Belum diaktifkan</Pill>}
         {!webhookOn && "Dokumen tetap tersimpan dan bisa diambil lewat API atau diunduh."}
       </p>
+      <section className="flex flex-col gap-4 rounded-2xl border border-line bg-surface p-5 shadow-card md:flex-row md:items-center">
+        <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-good-soft text-good">
+          <FileSpreadsheet className="size-7" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <h2 className="text-lg font-bold">Ekspor spreadsheet (Excel) untuk ERP</h2>
+          <p className="text-sm text-muted">Selama ERP belum terhubung otomatis, data bisa diunduh sebagai .xlsx: Ringkasan, Batch, Pemakaian Bahan, WIP Freezer, Hasil &amp; Reject, Pengiriman FG, Produktivitas, Stok Bahan, dan Posting ERP. Kolomnya sama dengan dokumen posting, sehingga siap diimpor ke ERP.</p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {(["hari", "7", "30"] as const).map((k) => (
+            <a key={k} href={`/laporan/excel?p=${k}`} className={btn("secondary", "md")}>
+              <Download className="size-5" /> {k === "hari" ? "Hari ini" : `${k} hari`}
+            </a>
+          ))}
+        </div>
+      </section>
       <PostingTable
         webhookOn={webhookOn}
         rows={postings.map((p) => ({ id: p.id, code: p.code, type: p.type, ref: p.ref, status: p.status, attempts: p.attempts, lastError: p.lastError, createdAt: p.createdAt, deliveredAt: p.deliveredAt, payload: p.payload }))}

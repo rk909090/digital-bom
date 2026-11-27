@@ -14,10 +14,11 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const items: NavItem[] = [
     { href: "/", label: "Beranda", short: "Beranda", icon: "home" },
     can(user.role, "rencana") && { href: "/rencana", label: "Rencana", short: "Rencana", icon: "plan" },
-    can(user.role, "gudang") && { href: "/gudang", label: "Gudang", short: "Gudang", icon: "warehouse", badge: n.gudang },
+    can(user.role, "gudang") && { href: "/gudang", label: "Gudang RM", short: "Gudang", icon: "warehouse", badge: n.gudang },
     can(user.role, "timbang") && { href: "/timbang", label: "Timbang Bahan", short: "Timbang", icon: "scale", badge: n.timbang },
+    can(user.role, "wip") && { href: "/wip", label: "Gudang WIP", short: "WIP", icon: "freezer", badge: n.wip },
     can(user.role, "output") && { href: "/output", label: "Hasil Produksi", short: "Hasil", icon: "output", badge: n.output },
-    can(user.role, "serahTerima") && { href: "/serah-terima", label: "Serah Terima", short: "Serah", icon: "handover", badge: n.serahTerima },
+    can(user.role, "pengiriman") && { href: "/pengiriman", label: "Pengiriman FG", short: "Kirim", icon: "ship", badge: n.pengiriman },
     can(user.role, "verifikasi") && { href: "/verifikasi", label: "Verifikasi", short: "Verifikasi", icon: "verify", badge: n.verifikasi + n.tutup, alert: n.verifikasi > 0 },
     can(user.role, "laporan") && { href: "/laporan", label: "Laporan", short: "Laporan", icon: "report" },
     can(user.role, "master") && { href: "/master", label: "Resep & Bahan", short: "Resep", icon: "master" },
